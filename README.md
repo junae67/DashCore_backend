@@ -32,6 +32,35 @@ cp .env-example .env
 npm run dev
 ```
 
+## Despliegue en Railway
+
+1. Crear una cuenta en [Railway](https://railway.app/)
+2. Instalar la CLI de Railway:
+```bash
+npm i -g @railway/cli
+```
+
+3. Iniciar sesión en Railway:
+```bash
+railway login
+```
+
+4. Inicializar el proyecto en Railway:
+```bash
+railway init
+```
+
+5. Desplegar la aplicación:
+```bash
+railway up
+```
+
+## Variables de Entorno en Railway
+
+Asegúrate de configurar las siguientes variables de entorno en el dashboard de Railway:
+- `DATABASE_URL`: URL de conexión a la base de datos PostgreSQL
+- `PORT`: Puerto en el que se ejecutará la aplicación (Railway lo configurará automáticamente)
+
 ## Tecnologías
 
 - Node.js
