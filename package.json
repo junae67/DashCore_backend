@@ -1,0 +1,33 @@
+{
+  "name": "dashcore",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+  "dev": "node --watch src/server.js",
+  "start": "node src/server.js",
+  "build": "prisma generate",
+  "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/junae67/dashcore.git"
+  },
+  "keywords": [],
+  "author": "Juan Pablo Vargas Escobar escobarjuanp67@gmail.com",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/junae67/dashcore/issues"
+  },
+  "homepage": "https://github.com/junae67/dashcore#readme",
+  "description": "app dashcore",
+  "dependencies": {
+    "@prisma/client": "^6.7.0",
+    "axios": "^1.9.0",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.7.0"
+  }
+}
