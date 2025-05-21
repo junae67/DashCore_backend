@@ -36,7 +36,6 @@ exports.authDynamics = (req, res) => {
 
 // GET /auth/callback?code=...
 exports.authCallback = async (req, res) => {
-  console.log('🔧 Código recibido:', req.query.code);
   const code = req.query.code;
 
   if (!code) {
@@ -48,44 +47,66 @@ exports.authCallback = async (req, res) => {
   const params = new URLSearchParams({
     client_id: process.env.DYNAMICS_CLIENT_ID,
     scope: `${process.env.DYNAMICS_RESOURCE}/.default offline_access openid profile`,
-    code: code,
+    code,
     redirect_uri: process.env.DYNAMICS_REDIRECT_URI,
     grant_type: 'authorization_code',
     client_secret: process.env.DYNAMICS_CLIENT_SECRET,
   });
 
-  console.log('➡ Intercambiando código por token...');
-
   try {
+    // 🔁 Intercambiar código por token
     const response = await axios.post(tokenUrl, params);
     const { access_token, refresh_token, expires_in, id_token } = response.data;
 
-    console.log('✔ Token recibido:', { access_token: '***', refresh_token: '***', expires_in });
-
-    // Decodificar el id_token para obtener el tenant_id del usuario logueado
+    // 🔍 Decodificar ID Token
     const jwtPayload = JSON.parse(Buffer.from(id_token.split('.')[1], 'base64').toString());
     const tenantId = jwtPayload.tid;
     const userId = jwtPayload.oid;
     const userEmail = jwtPayload.preferred_username;
+    const companyDomain = userEmail.split('@')[1];
 
-    console.log('🔎 User:', userEmail, 'Tenant:', tenantId);
+    console.log('👤 Autenticado:', userEmail, 'Tenant:', tenantId);
 
-    // Guarda en Prisma en tabla Connector
+    // 🛠 Buscar o crear ERP dynamics365
+    let erp = await prisma.erp.findUnique({ where: { name: 'dynamics365' } });
+    if (!erp) {
+      erp = await prisma.erp.create({ data: { name: 'dynamics365', description: 'Microsoft Dynamics 365 ERP' } });
+    }
+
+    // 🏢 Buscar o crear Company por dominio
+    let company = await prisma.company.findFirst({
+      where: {
+        email: { endsWith: `@${companyDomain}` },
+        erpId: erp.id,
+      },
+    });
+
+    if (!company) {
+      company = await prisma.company.create({
+        data: {
+          name: companyDomain.split('.')[0],
+          email: userEmail,
+          erpId: erp.id,
+        },
+      });
+    }
+
+    // 🔐 Guardar el token en tabla Connector
     await prisma.connector.create({
       data: {
         type: 'dynamics',
         accessToken: access_token,
         refreshToken: refresh_token,
         expiresAt: new Date(Date.now() + expires_in * 1000),
-        companyId: tenantId, // Ahora guardas el tenant como companyId real
-        erpId: userId,       // Id del usuario en Azure AD
+        companyId: company.id,
+        erpId: erp.id,
       },
     });
 
-    console.log('✔ Token guardado en DB con Prisma');
-    res.send(`✔ Autenticación exitosa para ${userEmail} (tenant: ${tenantId}). Token guardado.`);
+    console.log('✅ Token guardado correctamente para', userEmail);
+    res.send(`✔ Autenticación exitosa para ${userEmail} (empresa: ${company.name}). Token guardado.`);
   } catch (error) {
-    console.error('❌ Error al obtener el token:', error.response?.data || error.message);
+    console.error('❌ Error al obtener o guardar el token:', error.response?.data || error.message);
     res.status(500).send('Error al obtener el token');
   }
 };
