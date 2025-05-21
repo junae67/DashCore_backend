@@ -3,18 +3,10 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 // GET /dynamics/auth?email=usuario@empresa.com
+// GET /dynamics/auth
 exports.authDynamics = (req, res) => {
-  const userEmail = req.query.email;
-
-  if (!userEmail) {
-    return res.status(400).send('Falta el parámetro ?email=usuario@dominio.com');
-  }
-
   console.log('🌐 CLIENT_ID:', process.env.DYNAMICS_CLIENT_ID);
   console.log('🌐 REDIRECT_URI:', process.env.DYNAMICS_REDIRECT_URI);
-  console.log('🌐 USER_EMAIL:', userEmail);
-
-  const domain = userEmail.split('@')[1];
 
   const authorizeUrl = `https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize`;
 
@@ -23,13 +15,11 @@ exports.authDynamics = (req, res) => {
     response_type: 'code',
     redirect_uri: process.env.DYNAMICS_REDIRECT_URI,
     response_mode: 'query',
-    scope: `${process.env.DYNAMICS_RESOURCE}/.default offline_access openid profile`,
-    login_hint: userEmail,
-    domain_hint: domain
+    scope: `${process.env.DYNAMICS_RESOURCE}/.default offline_access openid profile`
+    // 👇 Ya no usamos login_hint ni domain_hint
   });
 
   const fullUrl = `${authorizeUrl}?${params.toString()}`;
-
   console.log('➡ Redirigiendo a:', fullUrl);
   res.redirect(fullUrl);
 };
