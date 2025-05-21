@@ -58,6 +58,15 @@ exports.authCallback = async (req, res) => {
     const response = await axios.post(tokenUrl, params);
     const { access_token, refresh_token, expires_in, id_token } = response.data;
 
+    try {
+      const payloadBase64 = id_token.split('.')[1];
+      const decodedPayload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf8'));
+    
+      console.log('📦 Payload del ID Token:', decodedPayload);
+    } catch (err) {
+      console.error('❌ Error al decodificar el payload del token:', err.message);
+    }
+
     // 🔍 Decodificar ID Token
     const jwtPayload = JSON.parse(Buffer.from(id_token.split('.')[1], 'base64').toString());
     const tenantId = jwtPayload.tid;
