@@ -28,6 +28,8 @@ const dynamicsController = require('../controllers/dynamics.controller');
 // Rutas de Dynamics
 router.get('/dynamics/auth', dynamicsController.authDynamics);
 router.get('/auth/callback', dynamicsController.authCallback);
+router.get('/dynamics/leads', dynamicsController.getDynamicsLeads);
+
 
 // Ruta de debug correcta dentro del router (así queda bien montada bajo `/api/erp`)
 router.get('/debug/env', (req, res) => {

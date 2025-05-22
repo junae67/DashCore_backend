@@ -109,3 +109,33 @@ exports.authCallback = async (req, res) => {
     res.status(500).send('Error al obtener el token');
   }
 };
+
+exports.getDynamicsLeads = async (req, res) => {
+  try {
+    // 🔐 Busca el token más reciente
+    const connector = await prisma.connector.findFirst({
+      where: { type: 'dynamics' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!connector) {
+      return res.status(404).json({ message: 'No hay token registrado para Dynamics' });
+    }
+
+    // 🌐 Llama al endpoint de leads de Dynamics
+    const response = await axios.get(`${process.env.DYNAMICS_RESOURCE}/api/data/v9.2/leads`, {
+      headers: {
+        Authorization: `Bearer ${connector.accessToken}`,
+        Accept: 'application/json',
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+      },
+    });
+
+    // 📦 Retorna los datos de leads
+    res.json(response.data.value);
+  } catch (error) {
+    console.error('❌ Error al obtener leads:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Error al obtener leads' });
+  }
+};
