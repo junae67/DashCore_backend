@@ -103,7 +103,7 @@ exports.authCallback = async (req, res) => {
     });
 
     console.log('✅ Token guardado correctamente para', userEmail);
-    res.send(`✔ Autenticación exitosa para ${userEmail} (empresa: ${company.name}). Token guardado.`);
+    res.redirect('https://www.dashcore.app/dashboard');
   } catch (error) {
     console.error('❌ Error al obtener o guardar el token:', error.response?.data || error.message);
     res.status(500).send('Error al obtener el token');
