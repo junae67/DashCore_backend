@@ -25,12 +25,12 @@ const express = require('express');
 const router = express.Router();
 const dynamicsController = require('../controllers/dynamics.controller');
 const erpController = require('../controllers/erp.controller');
-router.get('/list', erpController.listErpsWithClients);
+
 // Rutas de Dynamics
 router.get('/dynamics/auth', dynamicsController.authDynamics);
 router.get('/auth/callback', dynamicsController.authCallback);
 router.get('/dynamics/leads', dynamicsController.getDynamicsLeads);
-
+router.get('/list', erpController.listErpsWithClients);
 
 // Ruta de debug correcta dentro del router (así queda bien montada bajo `/api/erp`)
 router.get('/debug/env', (req, res) => {
