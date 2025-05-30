@@ -11,6 +11,17 @@ const app = express();
 const logger = require('./middlewares/logger');
 const errorHandler = require('./middlewares/errorHandle');
 const erpRoutes = require('./routes/erp.routes');
+const cors = require('cors');
+
+const allowedOrigins = [
+    'https://www.dashcore.app',
+    'http://localhost:5173' // para desarrollo local
+  ];
+
+  app.use(cors({
+    origin: allowedOrigins,
+    credentials: true
+  }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
