@@ -24,7 +24,8 @@ router.get('/error-test', (req, res, next) => {
 const express = require('express');
 const router = express.Router();
 const dynamicsController = require('../controllers/dynamics.controller');
-
+const erpController = require('../controllers/erp.controller');
+router.get('/list', erpController.listErpsWithClients);
 // Rutas de Dynamics
 router.get('/dynamics/auth', dynamicsController.authDynamics);
 router.get('/auth/callback', dynamicsController.authCallback);
