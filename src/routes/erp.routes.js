@@ -29,7 +29,8 @@ const authMiddleware = require('../middlewares/authMiddleware');
 // Rutas de Dynamics
 router.get('/dynamics/auth', dynamicsController.authDynamics);
 router.get('/auth/callback', dynamicsController.authCallback);
-outer.get('/dynamics/leads', authMiddleware, dynamicsController.getDynamicsLeads)
+router.get('/dynamics/leads', authMiddleware, dynamicsController.getDynamicsLeads);
+
 router.get('/list', erpController.listErpsWithClients);
 
 // Ruta de debug correcta dentro del router (así queda bien montada bajo `/api/erp`)
