@@ -30,6 +30,8 @@ const authMiddleware = require('../middlewares/authMiddleware');
 router.get('/dynamics/auth', dynamicsController.authDynamics);
 router.get('/auth/callback', dynamicsController.authCallback);
 router.get('/dynamics/leads', authMiddleware, dynamicsController.getDynamicsLeads);
+router.get('/dynamics/contacts', authMiddleware, dynamicsController.getDynamicsContacts);
+
 
 router.get('/list', erpController.listErpsWithClients);
 

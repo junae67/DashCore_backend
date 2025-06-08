@@ -141,3 +141,30 @@ exports.getDynamicsLeads = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener leads' });
   }
 };
+
+exports.getDynamicsContacts = async (req, res) => {
+  try {
+    const connector = await prisma.connector.findFirst({
+      where: { type: 'dynamics' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!connector) {
+      return res.status(404).json({ message: 'No hay token registrado para Dynamics' });
+    }
+
+    const response = await axios.get(`${process.env.DYNAMICS_RESOURCE}/api/data/v9.2/contacts`, {
+      headers: {
+        Authorization: `Bearer ${connector.accessToken}`,
+        Accept: 'application/json',
+        'OData-MaxVersion': '4.0',
+        'OData-Version': '4.0',
+      },
+    });
+
+    res.json(response.data.value);
+  } catch (error) {
+    console.error('❌ Error al obtener contactos:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Error al obtener contactos' });
+  }
+};
