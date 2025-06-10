@@ -12,6 +12,7 @@ const logger = require('./middlewares/logger');
 const errorHandler = require('./middlewares/errorHandle');
 const erpRoutes = require('./routes/erp.routes');
 const cors = require('cors');
+const externalRoutes = require('./routes/external');
 
 const allowedOrigins = [
     'https://www.dashcore.app',
@@ -27,6 +28,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(logger);
 app.use(errorHandler);
+app.use('/api', externalRoutes);
 
 // Todas tus rutas ERP ahora también manejan el debug de env
 app.use('/api/erp', erpRoutes);
