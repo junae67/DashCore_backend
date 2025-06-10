@@ -18,7 +18,8 @@ exports.receiveFinanceData = async (req, res) => {
     console.log('📦 Datos guardados:', saved);
     res.status(200).json({ message: `Se guardaron ${saved.count} registros` });
   } catch (error) {
-    console.error('❌ Error al guardar:', error);
+    console.error('❌ Error al guardar:', error.response?.data || error.message || error);
+
     res.status(500).json({ error: 'Error interno al guardar los datos' });
   }
 };
