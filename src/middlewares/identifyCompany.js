@@ -5,6 +5,7 @@ module.exports = async function identifyCompany(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {
+    console.warn('⚠️ Token no proporcionado en el middleware identifyCompany');
     return res.status(401).json({ error: 'Token no proporcionado' });
   }
 
@@ -32,9 +33,10 @@ module.exports = async function identifyCompany(req, res, next) {
     req.companyId = company.id;
     req.erpId = erp.id;
 
+    console.log('✅ Empresa identificada automáticamente:', company.name);
     next();
   } catch (err) {
     console.error('❌ Middleware identifyCompany:', err.message);
-    return res.status(403).json({ error: 'No se pudo identificar la empresa' });
+    return res.status(403).json({ error: 'No se pudo identificar la empresa automáticamente' });
   }
 };
