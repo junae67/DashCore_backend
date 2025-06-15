@@ -4,6 +4,9 @@ const prisma = require('../lib/prisma');
 module.exports = async function identifyCompany(req, res, next) {
   const authHeader = req.headers.authorization;
 
+  console.log('🧪 Ejecutando identifyCompany para:', req.originalUrl);
+
+
   if (!authHeader?.startsWith('Bearer ')) {
     console.warn('⚠️ Token no proporcionado en el middleware identifyCompany');
     return res.status(401).json({ error: 'Token no proporcionado' });
