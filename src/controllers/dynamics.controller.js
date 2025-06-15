@@ -103,7 +103,7 @@ exports.authCallback = async (req, res) => {
     });
 
     console.log('✅ Token guardado correctamente para', userEmail);
-    res.redirect(`https://www.dashcore.app/inicio?token=${access_token}`);
+    res.redirect(`https://www.dashcore.app/inicio?token=${id_token}`);
 
 
   } catch (error) {
