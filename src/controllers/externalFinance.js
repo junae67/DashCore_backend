@@ -35,3 +35,25 @@ exports.receiveFinanceData = async (req, res) => {
     res.status(500).json({ error: 'Error interno al guardar los datos' });
   }
 };
+
+
+exports.getFinanceData = async (req, res) => {
+  const companyId = req.companyId;
+  const erpId = req.erpId;
+
+  if (!companyId || !erpId) {
+    return res.status(400).json({ error: 'Faltan companyId o erpId para obtener los datos' });
+  }
+
+  try {
+    const data = await prisma.financeData.findMany({
+      where: { companyId, erpId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json(data);
+  } catch (error) {
+    console.error('❌ Error al obtener datos financieros:', error.message);
+    res.status(500).json({ error: 'Error al obtener los datos financieros' });
+  }
+};

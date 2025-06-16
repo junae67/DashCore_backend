@@ -9,4 +9,7 @@ router.post('/external/receive-finance-data',
   externalFinanceController.receiveFinanceData
 );
 
+router.get('/external/finance-data', identifyCompany, externalFinanceController.getFinanceData);
+
+
 module.exports = router;
