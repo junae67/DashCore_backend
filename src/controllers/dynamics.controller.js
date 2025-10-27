@@ -16,7 +16,7 @@ exports.authDynamics = (req, res) => {
     redirect_uri: process.env.DYNAMICS_REDIRECT_URI,
     response_mode: 'query',
     scope: `${process.env.DYNAMICS_RESOURCE}/.default offline_access openid profile`
-    // 👇 Ya no usamos login_hint ni domain_hint
+   
   });
 
   const fullUrl = `${authorizeUrl}?${params.toString()}`;
@@ -24,7 +24,7 @@ exports.authDynamics = (req, res) => {
   res.redirect(fullUrl);
 };
 
-// GET /auth/callback?code=...
+// GET /auth/callback
 exports.authCallback = async (req, res) => {
   const code = req.query.code;
 

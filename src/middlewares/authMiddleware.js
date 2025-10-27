@@ -17,7 +17,7 @@ module.exports = async function (req, res, next) {
     return res.status(403).json({ error: 'Token inválido o expirado' });
   }
 
-  // Podés guardar info del usuario si querés
+  
   req.connector = connector;
   next();
 };
