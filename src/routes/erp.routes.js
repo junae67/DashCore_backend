@@ -7,6 +7,28 @@ const authController = require('../controllers/auth.controller');
 const erpController = require('../controllers/erp.controller');
 const authMiddleware = require('../middlewares/authMiddleware');
 
+// ========== RETROCOMPATIBILIDAD DYNAMICS (rutas viejas) ==========
+// Mantener compatibilidad con la configuración existente de Azure AD
+router.get('/dynamics/auth', (req, res) => {
+  req.params.erpType = 'dynamics365';
+  authController.startOAuth(req, res);
+});
+
+router.get('/auth/callback', (req, res) => {
+  req.params.erpType = 'dynamics365';
+  authController.handleCallback(req, res);
+});
+
+router.get('/dynamics/leads', authMiddleware, (req, res) => {
+  req.params.erpType = 'dynamics365';
+  erpController.getLeads(req, res);
+});
+
+router.get('/dynamics/contacts', authMiddleware, (req, res) => {
+  req.params.erpType = 'dynamics365';
+  erpController.getContacts(req, res);
+});
+
 // ========== AUTENTICACIÓN OAUTH2 (Multi-ERP) ==========
 // Inicia el flujo OAuth2 para cualquier ERP
 router.get('/:erpType/auth', authController.startOAuth);
