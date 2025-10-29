@@ -1,50 +1,42 @@
 // src/routes/erp.routes.js
-
-/*const express = require('express');
-const router = express.Router();
-const dynamicsController = require('../controllers/dynamics.controller');
-const usersController = require('../controllers/users.controller');
-
-
-router.get('/dynamics/auth', dynamicsController.authDynamics);
-router.get('/dynamics/callback', dynamicsController.callbackDynamics);
-router.post('/dynamics/form', dynamicsController.formDynamics);
-router.post('/dynamics/data', dynamicsController.dataDynamics);
-
-router.get('/dynamics/read', usersController.readDynamics);
-router.post('/dynamics/send', usersController.sendDynamics);
-router.put('/dynamics/:id', usersController.editDynamics);
-router.delete('/dynamics/:id', usersController.deleteDynamics);
-router.get('/error-test', (req, res, next) => {
-    const error = new Error('Este es un error de prueba');
-    error.statusCode = 500;
-    next(error);
-});*/
+// Rutas para autenticación y datos de ERPs (Multi-ERP)
 
 const express = require('express');
 const router = express.Router();
-const dynamicsController = require('../controllers/dynamics.controller');
+const authController = require('../controllers/auth.controller');
 const erpController = require('../controllers/erp.controller');
 const authMiddleware = require('../middlewares/authMiddleware');
-// Rutas de Dynamics
-router.get('/dynamics/auth', dynamicsController.authDynamics);
-router.get('/auth/callback', dynamicsController.authCallback);
-router.get('/dynamics/leads', authMiddleware, dynamicsController.getDynamicsLeads);
-router.get('/dynamics/contacts', authMiddleware, dynamicsController.getDynamicsContacts);
 
+// ========== AUTENTICACIÓN OAUTH2 (Multi-ERP) ==========
+// Inicia el flujo OAuth2 para cualquier ERP
+router.get('/:erpType/auth', authController.startOAuth);
 
+// Callback de OAuth2 para cualquier ERP
+router.get('/:erpType/callback', authController.handleCallback);
+
+// ========== DATOS DE ERPs (Multi-ERP, requieren autenticación) ==========
+// Obtiene leads desde el ERP especificado
+router.get('/:erpType/leads', authMiddleware, erpController.getLeads);
+
+// Obtiene contactos desde el ERP especificado
+router.get('/:erpType/contacts', authMiddleware, erpController.getContacts);
+
+// Obtiene datos financieros desde el ERP especificado
+router.get('/:erpType/finance', authMiddleware, erpController.getFinanceData);
+
+// ========== ADMINISTRACIÓN ==========
+// Lista todos los ERPs disponibles con sus clientes
 router.get('/list', erpController.listErpsWithClients);
 
-// Ruta de debug correcta dentro del router (así queda bien montada bajo `/api/erp`)
-router.get('/debug/env', (req, res) => {
+// ========== DEBUG (solo desarrollo) ==========
+if (process.env.NODE_ENV !== 'production') {
+  router.get('/debug/env', (req, res) => {
     res.json({
-        DYNAMICS_CLIENT_ID: process.env.DYNAMICS_CLIENT_ID,
-        DYNAMICS_TENANT_ID: process.env.DYNAMICS_TENANT_ID,
-        DYNAMICS_REDIRECT_URI: process.env.DYNAMICS_REDIRECT_URI,
-        DYNAMICS_RESOURCE: process.env.DYNAMICS_RESOURCE,
-        DYNAMICS_CLIENT_SECRET: process.env.DYNAMICS_CLIENT_SECRET
+      DYNAMICS_CLIENT_ID: process.env.DYNAMICS_CLIENT_ID,
+      SAP_CLIENT_ID: process.env.SAP_CLIENT_ID,
+      NODE_ENV: process.env.NODE_ENV,
     });
-});
+  });
+}
 
 module.exports = router;
-
