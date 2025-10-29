@@ -78,22 +78,39 @@ exports.handleCallback = async (req, res) => {
     }
 
     // 4. Buscar o crear Company
+    // Primero intentar buscar por email exacto y erpId
     let company = await prisma.company.findFirst({
       where: {
-        email: { endsWith: `@${companyDomain}` },
+        email: userEmail,
         erpId: erp.id,
       },
     });
 
+    // Si no existe, buscar por dominio
     if (!company) {
-      company = await prisma.company.create({
-        data: {
-          name: companyDomain.split('.')[0], // Ejemplo: 'soft-mas' de 'soft-mas.com'
-          email: userEmail,
+      company = await prisma.company.findFirst({
+        where: {
+          email: { endsWith: `@${companyDomain}` },
           erpId: erp.id,
         },
       });
-      console.log(`✅ Company creada: ${company.name}`);
+    }
+
+    // Si aún no existe, crear nueva company
+    if (!company) {
+      // Generar email único para evitar conflictos
+      const uniqueEmail = `${companyDomain.split('.')[0]}-${erpType}@${companyDomain}`;
+
+      company = await prisma.company.create({
+        data: {
+          name: `${companyDomain.split('.')[0]}-${erpType}`,
+          email: uniqueEmail,
+          erpId: erp.id,
+        },
+      });
+      console.log(`✅ Company creada: ${company.name} (${company.email})`);
+    } else {
+      console.log(`✅ Company encontrada: ${company.name} (${company.email})`);
     }
 
     // 5. Guardar Connector (token) en la base de datos
