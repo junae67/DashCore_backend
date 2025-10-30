@@ -48,18 +48,30 @@ exports.handleCallback = async (req, res) => {
     const { access_token, refresh_token, expires_in, id_token } = tokens;
 
     console.log('✅ Tokens obtenidos exitosamente');
+    console.log(`📝 access_token: ${access_token ? 'OK' : 'FALTA'}`);
+    console.log(`📝 id_token: ${id_token ? 'OK' : 'FALTA'}`);
 
     // 2. Decodificar ID token para obtener información del usuario
-    const jwtPayload = connector.decodeJWT(id_token);
+    let jwtPayload;
+    let userEmail;
+    let companyDomain;
 
-    // Extraer email del usuario (puede variar según el proveedor)
-    const userEmail = jwtPayload.preferred_username || jwtPayload.email || jwtPayload.upn;
+    if (id_token) {
+      jwtPayload = connector.decodeJWT(id_token);
+      // Extraer email del usuario (puede variar según el proveedor)
+      userEmail = jwtPayload.preferred_username || jwtPayload.email || jwtPayload.upn;
 
-    if (!userEmail) {
-      throw new Error('No se pudo extraer el email del usuario del token');
+      if (!userEmail) {
+        throw new Error('No se pudo extraer el email del usuario del token');
+      }
+
+      companyDomain = userEmail.split('@')[1];
+    } else {
+      // Si no hay id_token (algunos proveedores OAuth2 no lo envían), usar email genérico
+      console.warn('⚠️ No se recibió id_token, usando email genérico para SAP Trial');
+      userEmail = `user-${Date.now()}@sap-trial.com`;
+      companyDomain = 'sap-trial.com';
     }
-
-    const companyDomain = userEmail.split('@')[1];
 
     console.log(`👤 Usuario autenticado: ${userEmail}`);
     console.log(`🏢 Dominio de empresa: ${companyDomain}`);
@@ -132,9 +144,12 @@ exports.handleCallback = async (req, res) => {
       ? 'https://www.dashcore.app'
       : 'http://localhost:5173';
 
-    const redirectUrl = `${frontendUrl}/inicio?id_token=${id_token}&access_token=${access_token}&erp=${erpType}`;
+    // Si no hay id_token, usar access_token como id_token (para SAP Trial)
+    const finalIdToken = id_token || access_token;
+    const redirectUrl = `${frontendUrl}/inicio?id_token=${finalIdToken}&access_token=${access_token}&erp=${erpType}`;
 
     console.log(`🎉 Autenticación exitosa, redirigiendo al frontend`);
+    console.log(`🔗 Redirect URL: ${frontendUrl}/inicio?erp=${erpType}`);
     res.redirect(redirectUrl);
 
   } catch (error) {
