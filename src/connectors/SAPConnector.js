@@ -95,18 +95,29 @@ class SAPConnector extends BaseConnector {
 
         // Transformar datos de SAP al formato de DashCore
         const quotations = response.data?.d?.results || [];
+
+        // Mapear códigos de estado de SAP a nombres descriptivos
+        const statusMap = {
+          'A': 'Not yet processed',
+          'B': 'Partially processed',
+          'C': 'Completely processed',
+        };
+
         return quotations.map((q) => ({
-          OpportunityID: q.SalesQuotation,
-          OpportunityName: `Cotización ${q.SalesQuotation}`,
+          OpportunityID: q.SalesQuotation || '',
+          OpportunityName: `Cotización ${q.SalesQuotation || 'N/A'}`,
           AccountName: q.SoldToParty || 'Cliente SAP',
           ExpectedRevenue: parseFloat(q.TotalNetAmount || 0),
-          Stage: q.OverallSDProcessStatus || 'Open',
+          Stage: statusMap[q.OverallSDProcessStatus] || 'Open',
           CreationDate: q.CreationDate || new Date().toISOString(),
           // Campos compatibles con frontend de Dynamics
-          fullname: `Cotización ${q.SalesQuotation}`,
+          fullname: `Cotización ${q.SalesQuotation || 'N/A'}`,
           companyname: q.SoldToParty || 'Cliente SAP',
           estimatedvalue: parseFloat(q.TotalNetAmount || 0),
           leadsourcecode: 3, // Partner
+          // Campos adicionales para compatibilidad
+          statuscode: q.OverallSDProcessStatus || 'Open',
+          description: `SAP Sales Quotation ${q.SalesQuotation || ''}`,
         }));
       } catch (error) {
         console.error('❌ Error al obtener datos de API Hub:', error.response?.data || error.message);
@@ -152,16 +163,21 @@ class SAPConnector extends BaseConnector {
 
         const partners = response.data?.d?.results || [];
         return partners.map((p) => ({
-          BusinessPartner: p.BusinessPartner,
-          BusinessPartnerFullName: p.BusinessPartnerFullName || p.BusinessPartnerName,
-          OrganizationBPName1: p.OrganizationBPName1 || 'SAP Customer',
-          BusinessPartnerCategory: p.BusinessPartnerCategory,
-          EmailAddress: p.DefaultEmailAddress || `${p.BusinessPartner}@sapcustomer.com`,
+          BusinessPartner: p.BusinessPartner || '',
+          BusinessPartnerFullName: p.BusinessPartnerFullName || p.BusinessPartnerName || 'SAP Contact',
+          OrganizationBPName1: p.OrganizationBPName1 || p.BusinessPartnerGrouping || 'SAP Customer',
+          BusinessPartnerCategory: p.BusinessPartnerCategory || '1',
+          EmailAddress: p.DefaultEmailAddress || `${p.BusinessPartner || 'contact'}@sapcustomer.com`,
           // Campos compatibles con Dynamics
-          contactid: p.BusinessPartner,
-          fullname: p.BusinessPartnerFullName || p.BusinessPartnerName,
-          emailaddress1: p.DefaultEmailAddress || `${p.BusinessPartner}@sapcustomer.com`,
-          companyname: p.OrganizationBPName1 || 'SAP Customer',
+          contactid: p.BusinessPartner || '',
+          fullname: p.BusinessPartnerFullName || p.BusinessPartnerName || 'SAP Contact',
+          emailaddress1: p.DefaultEmailAddress || `${p.BusinessPartner || 'contact'}@sapcustomer.com`,
+          companyname: p.OrganizationBPName1 || p.BusinessPartnerGrouping || 'SAP Customer',
+          // Campos adicionales para compatibilidad
+          firstname: p.FirstName || '',
+          lastname: p.LastName || '',
+          telephone1: p.PhoneNumber || '',
+          description: `SAP Business Partner ${p.BusinessPartner || ''}`,
         }));
       } catch (error) {
         console.error('❌ Error al obtener contactos de API Hub:', error.response?.data || error.message);
