@@ -13,6 +13,9 @@ class SAPConnector extends BaseConnector {
       tokenUrl: process.env.SAP_TOKEN_URL,
       apiUrl: process.env.SAP_API_URL,
       redirectUri: process.env.SAP_REDIRECT_URI,
+      // API Hub para datos reales
+      apiHubKey: process.env.SAP_API_HUB_KEY,
+      apiHubUrl: process.env.SAP_API_HUB_URL,
     });
   }
 
@@ -73,9 +76,47 @@ class SAPConnector extends BaseConnector {
   }
 
   async getLeads(accessToken) {
+    // Si tenemos API Hub Key, usar sandbox con datos reales
+    if (this.config.apiHubKey && this.config.apiHubKey !== 'YOUR_API_KEY_HERE') {
+      try {
+        console.log('📡 Obteniendo leads desde SAP API Business Hub (datos reales)');
+
+        // SAP API Hub - Sales Opportunities
+        const response = await axios.get(`${this.config.apiHubUrl}/sap/opu/odata/sap/API_SALES_QUOTATION_SRV/A_SalesQuotation`, {
+          headers: {
+            'APIKey': this.config.apiHubKey,
+            'Accept': 'application/json',
+          },
+          params: {
+            '$top': 20,
+            '$format': 'json',
+          },
+        });
+
+        // Transformar datos de SAP al formato de DashCore
+        const quotations = response.data?.d?.results || [];
+        return quotations.map((q) => ({
+          OpportunityID: q.SalesQuotation,
+          OpportunityName: `Cotización ${q.SalesQuotation}`,
+          AccountName: q.SoldToParty || 'Cliente SAP',
+          ExpectedRevenue: parseFloat(q.TotalNetAmount || 0),
+          Stage: q.OverallSDProcessStatus || 'Open',
+          CreationDate: q.CreationDate || new Date().toISOString(),
+          // Campos compatibles con frontend de Dynamics
+          fullname: `Cotización ${q.SalesQuotation}`,
+          companyname: q.SoldToParty || 'Cliente SAP',
+          estimatedvalue: parseFloat(q.TotalNetAmount || 0),
+          leadsourcecode: 3, // Partner
+        }));
+      } catch (error) {
+        console.error('❌ Error al obtener datos de API Hub:', error.response?.data || error.message);
+        console.warn('⚠️ Retornando datos simulados');
+        return this._getMockLeads();
+      }
+    }
+
+    // Fallback: Intentar SAP BTP Trial (probablemente sin datos)
     try {
-      // SAP usa "Opportunities" en lugar de "Leads"
-      // Nota: Esta URL es un ejemplo, ajusta según tu API de SAP disponible
       const response = await axios.get(`${this.config.apiUrl}/sap/opu/odata/sap/API_OPPORTUNITY/Opportunity`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -83,17 +124,53 @@ class SAPConnector extends BaseConnector {
         },
       });
 
-      // SAP OData v2 retorna data.d.results
       return response.data?.d?.results || [];
     } catch (error) {
-      console.error('❌ Error al obtener leads de SAP:', error.response?.data || error.message);
-      // Si el endpoint no existe en trial, retornar datos simulados
-      console.warn('⚠️ Retornando datos simulados de SAP (trial sin datos)');
+      console.error('❌ Error al obtener leads de SAP BTP:', error.response?.data || error.message);
+      console.warn('⚠️ Retornando datos simulados (trial sin datos)');
       return this._getMockLeads();
     }
   }
 
   async getContacts(accessToken) {
+    // Si tenemos API Hub Key, usar sandbox con datos reales
+    if (this.config.apiHubKey && this.config.apiHubKey !== 'YOUR_API_KEY_HERE') {
+      try {
+        console.log('📡 Obteniendo contactos desde SAP API Business Hub (datos reales)');
+
+        const response = await axios.get(`${this.config.apiHubUrl}/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner`, {
+          headers: {
+            'APIKey': this.config.apiHubKey,
+            'Accept': 'application/json',
+          },
+          params: {
+            '$top': 50,
+            '$format': 'json',
+            '$filter': "BusinessPartnerCategory eq '1'", // Solo personas
+          },
+        });
+
+        const partners = response.data?.d?.results || [];
+        return partners.map((p) => ({
+          BusinessPartner: p.BusinessPartner,
+          BusinessPartnerFullName: p.BusinessPartnerFullName || p.BusinessPartnerName,
+          OrganizationBPName1: p.OrganizationBPName1 || 'SAP Customer',
+          BusinessPartnerCategory: p.BusinessPartnerCategory,
+          EmailAddress: p.DefaultEmailAddress || `${p.BusinessPartner}@sapcustomer.com`,
+          // Campos compatibles con Dynamics
+          contactid: p.BusinessPartner,
+          fullname: p.BusinessPartnerFullName || p.BusinessPartnerName,
+          emailaddress1: p.DefaultEmailAddress || `${p.BusinessPartner}@sapcustomer.com`,
+          companyname: p.OrganizationBPName1 || 'SAP Customer',
+        }));
+      } catch (error) {
+        console.error('❌ Error al obtener contactos de API Hub:', error.response?.data || error.message);
+        console.warn('⚠️ Retornando datos simulados');
+        return this._getMockContacts();
+      }
+    }
+
+    // Fallback: Intentar SAP BTP Trial
     try {
       const response = await axios.get(`${this.config.apiUrl}/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner`, {
         headers: {
@@ -104,8 +181,8 @@ class SAPConnector extends BaseConnector {
 
       return response.data?.d?.results || [];
     } catch (error) {
-      console.error('❌ Error al obtener contactos de SAP:', error.response?.data || error.message);
-      console.warn('⚠️ Retornando datos simulados de SAP (trial sin datos)');
+      console.error('❌ Error al obtener contactos de SAP BTP:', error.response?.data || error.message);
+      console.warn('⚠️ Retornando datos simulados (trial sin datos)');
       return this._getMockContacts();
     }
   }
