@@ -32,9 +32,20 @@ exports.startOAuth = (req, res) => {
  */
 exports.handleCallback = async (req, res) => {
   const { erpType } = req.params;
-  const { code } = req.query;
+  const { code, error, error_description } = req.query;
+
+  console.log(`🔔 Callback recibido para ${erpType}`);
+  console.log(`📋 Query params:`, req.query);
+  console.log(`🔗 Full URL: ${req.protocol}://${req.get('host')}${req.originalUrl}`);
+
+  // Si hay error en el OAuth
+  if (error) {
+    console.error(`❌ Error en OAuth de ${erpType}:`, error, error_description);
+    return res.status(400).send(`Error en autenticación: ${error} - ${error_description}`);
+  }
 
   if (!code) {
+    console.error('❌ No se recibió código de autorización');
     return res.status(400).send('Falta el código de autorización');
   }
 
