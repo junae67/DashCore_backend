@@ -88,8 +88,9 @@ class SAPConnector extends BaseConnector {
             'Accept': 'application/json',
           },
           params: {
-            '$top': 20,
+            '$top': 100,
             '$format': 'json',
+            '$inlinecount': 'allpages', // Para saber cuántos hay en total
           },
         });
 
@@ -155,9 +156,10 @@ class SAPConnector extends BaseConnector {
             'Accept': 'application/json',
           },
           params: {
-            '$top': 50,
+            '$top': 100,
             '$format': 'json',
             '$filter': "BusinessPartnerCategory eq '1'", // Solo personas
+            '$inlinecount': 'allpages', // Para saber cuántos hay en total
           },
         });
 
