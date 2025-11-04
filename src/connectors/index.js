@@ -3,11 +3,13 @@
 
 const DynamicsConnector = require('./DynamicsConnector');
 const SAPConnector = require('./SAPConnector');
+const BusinessCentralConnector = require('./BusinessCentralConnector');
 
 // Instancias singleton de cada conector
 const connectors = {
   dynamics365: new DynamicsConnector(),
   sap: new SAPConnector(),
+  businesscentral: new BusinessCentralConnector(),
   // Futuros conectores:
   // oracle: new OracleConnector(),
   // salesforce: new SalesforceConnector(),
