@@ -4,6 +4,7 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
+const bcAuthController = require('../controllers/businessCentralAuth.controller');
 const erpController = require('../controllers/erp.controller');
 const authMiddleware = require('../middlewares/authMiddleware');
 
@@ -35,6 +36,13 @@ router.get('/:erpType/auth', authController.startOAuth);
 
 // Callback de OAuth2 para cualquier ERP
 router.get('/:erpType/callback', authController.handleCallback);
+
+// ========== BUSINESS CENTRAL (Autenticación Directa) ==========
+// POST para autenticación directa (modo básico)
+router.post('/businesscentral/auth/direct', bcAuthController.directAuth);
+
+// GET sobrescribe el flujo OAuth para BC y usa autenticación directa
+router.get('/businesscentral/auth', bcAuthController.startDirectAuth);
 
 // ========== DATOS DE ERPs (Multi-ERP, requieren autenticación) ==========
 // Obtiene leads desde el ERP especificado
