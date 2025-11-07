@@ -3,6 +3,7 @@
 // Soporta: Local (Docker con Basic Auth) y Cloud (OAuth2)
 
 const axios = require('axios');
+const jwt = require('jsonwebtoken');
 const BaseConnector = require('./BaseConnector');
 
 class BusinessCentralConnector extends BaseConnector {
@@ -80,12 +81,16 @@ class BusinessCentralConnector extends BaseConnector {
    */
   async authenticate(code) {
     if (this.isLocalMode()) {
-      // Modo local: Token Basic Auth
+      // Modo local: Generar JWT válido
+      const basicAuth = Buffer.from(`${this.config.username}:${this.config.password}`).toString('base64');
+      const accessToken = this._generateValidJWT(this.config.username, basicAuth);
+      const idToken = this._generateValidJWT(this.config.username, basicAuth);
+
       return {
-        access_token: Buffer.from(`${this.config.username}:${this.config.password}`).toString('base64'),
+        access_token: accessToken,
         refresh_token: null,
         expires_in: 3600,
-        id_token: this._generateMockIdToken('basic'),
+        id_token: idToken,
       };
     }
 
@@ -143,11 +148,25 @@ class BusinessCentralConnector extends BaseConnector {
    */
   _getAuthHeaders(accessToken) {
     if (this.isLocalMode()) {
-      const auth = Buffer.from(`${this.config.username}:${this.config.password}`).toString('base64');
-      return {
-        'Authorization': `Basic ${auth}`,
-        'Accept': 'application/json',
-      };
+      try {
+        // Decodificar el JWT para extraer las credenciales Basic Auth
+        const secret = process.env.JWT_SECRET || 'dashcore-bc-secret';
+        const decoded = jwt.verify(accessToken, secret);
+        const basicAuth = decoded.basic_auth;
+
+        return {
+          'Authorization': `Basic ${basicAuth}`,
+          'Accept': 'application/json',
+        };
+      } catch (error) {
+        console.error('❌ Error al decodificar JWT:', error.message);
+        // Fallback: usar credenciales del config
+        const auth = Buffer.from(`${this.config.username}:${this.config.password}`).toString('base64');
+        return {
+          'Authorization': `Basic ${auth}`,
+          'Accept': 'application/json',
+        };
+      }
     }
 
     if (this.isCloudMode()) {
@@ -304,19 +323,22 @@ class BusinessCentralConnector extends BaseConnector {
     return statusMap[status] || 'Open';
   }
 
-  _generateMockIdToken(mode = 'basic') {
-    // Generar un JWT mock para Business Central
-    const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64');
-    const payload = Buffer.from(JSON.stringify({
-      preferred_username: mode === 'basic' ? 'admin@businesscentral.local' : 'user@customer.com',
-      email: mode === 'basic' ? 'admin@businesscentral.local' : 'user@customer.com',
-      name: mode === 'basic' ? 'Business Central Admin' : 'Business Central User',
-      iss: mode === 'basic' ? 'BusinessCentral' : 'https://login.microsoftonline.com',
+  _generateValidJWT(username, basicAuth) {
+    // Generar un JWT válido firmado para Business Central modo básico
+    const payload = {
+      preferred_username: username,
+      email: `${username}@businesscentral.local`,
+      name: 'Business Central Admin',
+      iss: 'BusinessCentral',
       aud: 'DashCore',
-      exp: Math.floor(Date.now() / 1000) + 3600,
-    })).toString('base64');
-    const signature = 'mock-signature';
-    return `${header}.${payload}.${signature}`;
+      auth_mode: 'basic',
+      basic_auth: basicAuth, // Credenciales Basic Auth incluidas en el token
+      exp: Math.floor(Date.now() / 1000) + 3600, // Expira en 1 hora
+      iat: Math.floor(Date.now() / 1000)
+    };
+
+    const secret = process.env.JWT_SECRET || 'dashcore-bc-secret';
+    return jwt.sign(payload, secret);
   }
 
   // ========== DATOS SIMULADOS (cuando Docker no está corriendo) ==========

@@ -2,7 +2,29 @@
 // Autenticación directa para Business Central (modo local/básico)
 
 const { PrismaClient } = require('@prisma/client');
+const jwt = require('jsonwebtoken');
 const prisma = new PrismaClient();
+
+/**
+ * Genera un JWT válido para Business Central modo básico
+ */
+function generateBCJWT(username, basicAuth) {
+  const payload = {
+    preferred_username: username,
+    email: `${username}@businesscentral.local`,
+    name: 'Business Central Admin',
+    iss: 'BusinessCentral',
+    aud: 'DashCore',
+    auth_mode: 'basic',
+    basic_auth: basicAuth, // Guardamos las credenciales Basic Auth en el token
+    exp: Math.floor(Date.now() / 1000) + 3600, // Expira en 1 hora
+    iat: Math.floor(Date.now() / 1000)
+  };
+
+  // Usamos una secret key para firmar (o 'none' para modo básico)
+  const secret = process.env.JWT_SECRET || 'dashcore-bc-secret';
+  return jwt.sign(payload, secret);
+}
 
 /**
  * POST /api/erp/businesscentral/auth/direct
@@ -25,10 +47,10 @@ exports.directAuth = async (req, res) => {
     console.log('   Usuario:', username);
     console.log('   API URL:', apiUrl || process.env.BC_API_URL);
 
-    // Generar token simulado para modo básico
-    // En modo básico, el "token" es simplemente las credenciales codificadas
+    // Generar JWT válido para modo básico
     const basicAuth = Buffer.from(`${username}:${password}`).toString('base64');
-    const fakeToken = `basic_${basicAuth}`;
+    const accessToken = generateBCJWT(username, basicAuth);
+    const idToken = generateBCJWT(username, basicAuth); // Mismo payload para ambos
 
     // Buscar o crear ERP
     let erp = await prisma.erp.findUnique({ where: { name: 'businesscentral' } });
@@ -73,7 +95,7 @@ exports.directAuth = async (req, res) => {
       connector = await prisma.connector.update({
         where: { id: connector.id },
         data: {
-          accessToken: fakeToken,
+          accessToken: accessToken,
           updatedAt: new Date()
         }
       });
@@ -82,9 +104,9 @@ exports.directAuth = async (req, res) => {
       connector = await prisma.connector.create({
         data: {
           type: 'businesscentral',
-          accessToken: fakeToken,
+          accessToken: accessToken,
           refreshToken: null,
-          expiresAt: null, // Modo básico no expira
+          expiresAt: new Date(Date.now() + 3600000), // 1 hora
           companyId: company.id,
           erpId: erp.id
         }
@@ -95,11 +117,12 @@ exports.directAuth = async (req, res) => {
     console.log('   Company ID:', company.id);
     console.log('   Connector ID:', connector.id);
 
-    // Retornar tokens para el frontend
+    // Retornar tokens JWT válidos para el frontend
     res.json({
-      access_token: fakeToken,
-      id_token: fakeToken, // Mismo token para ambos en modo básico
+      access_token: accessToken,
+      id_token: idToken,
       token_type: 'Bearer',
+      expires_in: 3600,
       company: {
         id: company.id,
         name: company.name
@@ -133,9 +156,10 @@ exports.startDirectAuth = async (req, res) => {
     const apiUrl = process.env.BC_API_URL;
     const companyId = process.env.BC_COMPANY_ID;
 
-    // Generar token
+    // Generar JWT válido
     const basicAuth = Buffer.from(`${username}:${password}`).toString('base64');
-    const fakeToken = `basic_${basicAuth}`;
+    const accessToken = generateBCJWT(username, basicAuth);
+    const idToken = generateBCJWT(username, basicAuth);
 
     // Buscar o crear ERP
     let erp = await prisma.erp.findUnique({ where: { name: 'businesscentral' } });
@@ -179,7 +203,8 @@ exports.startDirectAuth = async (req, res) => {
       connector = await prisma.connector.update({
         where: { id: connector.id },
         data: {
-          accessToken: fakeToken,
+          accessToken: accessToken,
+          expiresAt: new Date(Date.now() + 3600000), // 1 hora
           updatedAt: new Date()
         }
       });
@@ -187,9 +212,9 @@ exports.startDirectAuth = async (req, res) => {
       connector = await prisma.connector.create({
         data: {
           type: 'businesscentral',
-          accessToken: fakeToken,
+          accessToken: accessToken,
           refreshToken: null,
-          expiresAt: null,
+          expiresAt: new Date(Date.now() + 3600000), // 1 hora
           companyId: company.id,
           erpId: erp.id
         }
@@ -198,12 +223,12 @@ exports.startDirectAuth = async (req, res) => {
 
     console.log('✅ Credenciales configuradas para BC');
 
-    // Redirigir al frontend con tokens
+    // Redirigir al frontend con JWT tokens válidos
     const frontendUrl = process.env.NODE_ENV === 'production'
       ? 'https://www.dashcore.app'
       : 'http://localhost:5173';
 
-    const redirectUrl = `${frontendUrl}/inicio?access_token=${fakeToken}&id_token=${fakeToken}&erp=businesscentral`;
+    const redirectUrl = `${frontendUrl}/inicio?access_token=${accessToken}&id_token=${idToken}&erp=businesscentral`;
 
     res.redirect(redirectUrl);
 
