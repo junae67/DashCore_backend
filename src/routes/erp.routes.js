@@ -30,19 +30,22 @@ router.get('/dynamics/contacts', authMiddleware, (req, res) => {
   erpController.getContacts(req, res);
 });
 
+// ========== BUSINESS CENTRAL (Autenticación Directa) ==========
+// IMPORTANTE: Estas rutas específicas DEBEN ir ANTES de las rutas genéricas /:erpType
+// para que Express las matchee correctamente
+
+// POST para autenticación directa (modo básico)
+router.post('/businesscentral/auth/direct', bcAuthController.directAuth);
+
+// GET sobrescribe el flujo OAuth para BC y usa autenticación directa
+router.get('/businesscentral/auth', bcAuthController.startDirectAuth);
+
 // ========== AUTENTICACIÓN OAUTH2 (Multi-ERP) ==========
 // Inicia el flujo OAuth2 para cualquier ERP
 router.get('/:erpType/auth', authController.startOAuth);
 
 // Callback de OAuth2 para cualquier ERP
 router.get('/:erpType/callback', authController.handleCallback);
-
-// ========== BUSINESS CENTRAL (Autenticación Directa) ==========
-// POST para autenticación directa (modo básico)
-router.post('/businesscentral/auth/direct', bcAuthController.directAuth);
-
-// GET sobrescribe el flujo OAuth para BC y usa autenticación directa
-router.get('/businesscentral/auth', bcAuthController.startDirectAuth);
 
 // ========== DATOS DE ERPs (Multi-ERP, requieren autenticación) ==========
 // Obtiene leads desde el ERP especificado
