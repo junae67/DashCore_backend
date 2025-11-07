@@ -186,8 +186,11 @@ class BusinessCentralConnector extends BaseConnector {
     try {
       console.log(`📡 Obteniendo Sales Quotes desde Business Central (${this.config.authType.toUpperCase()})`);
 
+      // OData requiere que el Company ID esté entre comillas simples y URL encoded
+      const encodedCompanyId = encodeURIComponent(`'${this.config.companyId}'`);
+
       const response = await axios.get(
-        `${this.config.apiUrl}/companies(${encodeURIComponent(this.config.companyId)})/salesQuotes`,
+        `${this.config.apiUrl}/companies(${encodedCompanyId})/salesQuotes`,
         {
           headers: this._getAuthHeaders(accessToken),
           params: {
@@ -235,8 +238,11 @@ class BusinessCentralConnector extends BaseConnector {
     try {
       console.log(`📡 Obteniendo Customers desde Business Central (${this.config.authType.toUpperCase()})`);
 
+      // OData requiere que el Company ID esté entre comillas simples y URL encoded
+      const encodedCompanyId = encodeURIComponent(`'${this.config.companyId}'`);
+
       const response = await axios.get(
-        `${this.config.apiUrl}/companies(${encodeURIComponent(this.config.companyId)})/customers`,
+        `${this.config.apiUrl}/companies(${encodedCompanyId})/customers`,
         {
           headers: this._getAuthHeaders(accessToken),
           params: {
@@ -285,8 +291,11 @@ class BusinessCentralConnector extends BaseConnector {
     try {
       console.log(`📡 Obteniendo Sales Orders desde Business Central (${this.config.authType.toUpperCase()})`);
 
+      // OData requiere que el Company ID esté entre comillas simples y URL encoded
+      const encodedCompanyId = encodeURIComponent(`'${this.config.companyId}'`);
+
       const response = await axios.get(
-        `${this.config.apiUrl}/companies(${encodeURIComponent(this.config.companyId)})/salesOrders`,
+        `${this.config.apiUrl}/companies(${encodedCompanyId})/salesOrders`,
         {
           headers: this._getAuthHeaders(accessToken),
           params: {
