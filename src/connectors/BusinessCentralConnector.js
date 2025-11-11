@@ -17,7 +17,7 @@ class BusinessCentralConnector extends BaseConnector {
     super({
       // Configuración común
       apiUrl: process.env.BC_API_URL,
-      companyId: process.env.BC_COMPANY_ID || 'CRONUS USA, Inc.',
+      companyId: process.env.BC_COMPANY_ID || '', // Dejar vacío si no está configurado
 
       // Modo de autenticación: 'basic' (local) o 'oauth2' (cloud)
       authType: process.env.BC_AUTH_TYPE || 'basic',
