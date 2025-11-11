@@ -3,8 +3,14 @@
 // Soporta: Local (Docker con Basic Auth) y Cloud (OAuth2)
 
 const axios = require('axios');
+const https = require('https');
 const jwt = require('jsonwebtoken');
 const BaseConnector = require('./BaseConnector');
+
+// Agente HTTPS que ignora errores SSL (solo para desarrollo/ngrok)
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false
+});
 
 class BusinessCentralConnector extends BaseConnector {
   constructor() {
@@ -27,7 +33,13 @@ class BusinessCentralConnector extends BaseConnector {
       redirectUri: process.env.BC_REDIRECT_URI,
     });
 
-    console.log(`🔧 Business Central Connector iniciado en modo: ${this.config.authType.toUpperCase()}`);
+    console.log('\n🔧 ========== BC CONNECTOR INICIADO ==========');
+    console.log(`📍 Modo: ${this.config.authType.toUpperCase()}`);
+    console.log(`🌐 API URL: ${this.config.apiUrl}`);
+    console.log(`👤 Username: ${this.config.username || 'NO CONFIGURADO'}`);
+    console.log(`🔑 Password: ${this.config.password ? '***' + this.config.password.slice(-3) : 'NO CONFIGURADO'}`);
+    console.log(`🏢 Company ID: ${this.config.companyId}`);
+    console.log('==============================================\n');
   }
 
   /**
@@ -108,6 +120,8 @@ class BusinessCentralConnector extends BaseConnector {
 
       const response = await axios.post(tokenUrl, params, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        httpsAgent: httpsAgent, // SSL fix
+        timeout: 300000,
       });
 
       return response.data;
@@ -135,6 +149,8 @@ class BusinessCentralConnector extends BaseConnector {
 
       const response = await axios.post(tokenUrl, params, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        httpsAgent: httpsAgent, // SSL fix
+        timeout: 300000,
       });
 
       return response.data;
@@ -147,6 +163,8 @@ class BusinessCentralConnector extends BaseConnector {
    * Obtiene los headers de autenticación según el modo
    */
   _getAuthHeaders(accessToken) {
+    console.log('🔐 Generando headers de autenticación...');
+
     if (this.isLocalMode()) {
       try {
         // Decodificar el JWT para extraer las credenciales Basic Auth
@@ -154,25 +172,38 @@ class BusinessCentralConnector extends BaseConnector {
         const decoded = jwt.verify(accessToken, secret);
         const basicAuth = decoded.basic_auth;
 
+        console.log('✅ JWT decodificado correctamente');
+        console.log(`📝 Auth Base64 (primeros 20 chars): ${basicAuth.substring(0, 20)}...`);
+
         return {
           'Authorization': `Basic ${basicAuth}`,
           'Accept': 'application/json',
+          'Content-Type': 'application/json',
         };
       } catch (error) {
         console.error('❌ Error al decodificar JWT:', error.message);
+        console.log('🔄 Usando fallback: credenciales del config');
+
         // Fallback: usar credenciales del config
         const auth = Buffer.from(`${this.config.username}:${this.config.password}`).toString('base64');
+        console.log(`📝 Auth Base64 (primeros 20 chars): ${auth.substring(0, 20)}...`);
+
         return {
           'Authorization': `Basic ${auth}`,
           'Accept': 'application/json',
+          'Content-Type': 'application/json',
         };
       }
     }
 
     if (this.isCloudMode()) {
+      console.log('☁️ Usando Bearer token OAuth2');
+      console.log(`📝 Token (primeros 20 chars): ${accessToken.substring(0, 20)}...`);
+
       return {
         'Authorization': `Bearer ${accessToken}`,
         'Accept': 'application/json',
+        'Content-Type': 'application/json',
       };
     }
 
@@ -183,23 +214,51 @@ class BusinessCentralConnector extends BaseConnector {
    * Obtiene Sales Quotes (equivalente a Leads/Opportunities)
    */
   async getLeads(accessToken) {
+    const startTime = Date.now();
+
     try {
-      console.log(`📡 Obteniendo Sales Quotes desde Business Central (${this.config.authType.toUpperCase()})`);
+      console.log('\n📡 ========== OBTENIENDO SALES QUOTES ==========');
+      console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+      console.log(`📍 Modo: ${this.config.authType.toUpperCase()}`);
 
-      // OData requiere que el Company ID esté entre comillas simples y URL encoded
-      const encodedCompanyId = encodeURIComponent(`'${this.config.companyId}'`);
+      // Si el endpoint no requiere company ID, usar directamente /salesQuotes
+      const useDirectEndpoint = !this.config.companyId || this.config.companyId === '';
+      let url;
 
-      const response = await axios.get(
-        `${this.config.apiUrl}/companies(${encodedCompanyId})/salesQuotes`,
-        {
-          headers: this._getAuthHeaders(accessToken),
-          params: {
-            '$top': 100,
-          },
-        }
-      );
+      if (useDirectEndpoint) {
+        url = `${this.config.apiUrl}/salesQuotes`;
+        console.log('🔗 Usando endpoint directo (sin company ID)');
+      } else {
+        // OData requiere que el Company ID esté entre comillas simples y URL encoded
+        const encodedCompanyId = encodeURIComponent(`'${this.config.companyId}'`);
+        url = `${this.config.apiUrl}/companies(${encodedCompanyId})/salesQuotes`;
+        console.log('🔗 Usando endpoint con company ID');
+      }
+
+      console.log(`🌐 URL completa: ${url}`);
+      console.log('⏳ Iniciando petición...');
+
+      const response = await axios.get(url, {
+        headers: this._getAuthHeaders(accessToken),
+        params: { '$top': 100 },
+        httpsAgent: httpsAgent, // SSL fix
+        timeout: 300000, // 5 minutos
+        validateStatus: (status) => status >= 200 && status < 600,
+      });
+
+      const duration = Date.now() - startTime;
+      console.log(`✅ Petición completada en: ${duration}ms`);
+      console.log(`📊 Status Code: ${response.status}`);
+      console.log(`📏 Tamaño respuesta: ${JSON.stringify(response.data).length} bytes`);
+
+      if (response.status < 200 || response.status >= 300) {
+        console.error(`❌ Error HTTP ${response.status}`);
+        console.error(`📄 Respuesta:`, JSON.stringify(response.data, null, 2));
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(response.data)}`);
+      }
 
       const quotes = response.data?.value || [];
+      console.log(`📊 Registros recibidos: ${quotes.length}`);
 
       // Transformar a formato DashCore
       return quotes.map((q) => ({
@@ -219,7 +278,24 @@ class BusinessCentralConnector extends BaseConnector {
       }));
 
     } catch (error) {
-      console.error('❌ Error al obtener Sales Quotes de Business Central:', error.message);
+      const duration = Date.now() - startTime;
+      console.error('\n❌ ========== ERROR EN SALES QUOTES ==========');
+      console.error(`⏱️ Duración antes del error: ${duration}ms`);
+      console.error(`❌ Tipo de error: ${error.name}`);
+      console.error(`💬 Mensaje: ${error.message}`);
+
+      if (error.response) {
+        console.error(`📊 Status Code: ${error.response.status}`);
+        console.error(`📄 Respuesta:`, JSON.stringify(error.response.data, null, 2));
+        console.error(`📋 Headers:`, JSON.stringify(error.response.headers, null, 2));
+      } else if (error.request) {
+        console.error('📡 No se recibió respuesta del servidor');
+        console.error('🔧 Request headers:', JSON.stringify(error.config?.headers, null, 2));
+      } else {
+        console.error('⚙️ Error en configuración:', error.message);
+      }
+
+      console.error('📚 Stack trace:', error.stack);
 
       // Si Business Central no está disponible, retornar datos mock
       if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
@@ -235,23 +311,51 @@ class BusinessCentralConnector extends BaseConnector {
    * Obtiene Customers (equivalente a Contacts)
    */
   async getContacts(accessToken) {
+    const startTime = Date.now();
+
     try {
-      console.log(`📡 Obteniendo Customers desde Business Central (${this.config.authType.toUpperCase()})`);
+      console.log('\n📡 ========== OBTENIENDO CUSTOMERS ==========');
+      console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+      console.log(`📍 Modo: ${this.config.authType.toUpperCase()}`);
 
-      // OData requiere que el Company ID esté entre comillas simples y URL encoded
-      const encodedCompanyId = encodeURIComponent(`'${this.config.companyId}'`);
+      // Si el endpoint no requiere company ID, usar directamente /customers
+      const useDirectEndpoint = !this.config.companyId || this.config.companyId === '';
+      let url;
 
-      const response = await axios.get(
-        `${this.config.apiUrl}/companies(${encodedCompanyId})/customers`,
-        {
-          headers: this._getAuthHeaders(accessToken),
-          params: {
-            '$top': 100,
-          },
-        }
-      );
+      if (useDirectEndpoint) {
+        url = `${this.config.apiUrl}/customers`;
+        console.log('🔗 Usando endpoint directo (sin company ID)');
+      } else {
+        // OData requiere que el Company ID esté entre comillas simples y URL encoded
+        const encodedCompanyId = encodeURIComponent(`'${this.config.companyId}'`);
+        url = `${this.config.apiUrl}/companies(${encodedCompanyId})/customers`;
+        console.log('🔗 Usando endpoint con company ID');
+      }
+
+      console.log(`🌐 URL completa: ${url}`);
+      console.log('⏳ Iniciando petición...');
+
+      const response = await axios.get(url, {
+        headers: this._getAuthHeaders(accessToken),
+        params: { '$top': 100 },
+        httpsAgent: httpsAgent, // SSL fix
+        timeout: 300000, // 5 minutos
+        validateStatus: (status) => status >= 200 && status < 600,
+      });
+
+      const duration = Date.now() - startTime;
+      console.log(`✅ Petición completada en: ${duration}ms`);
+      console.log(`📊 Status Code: ${response.status}`);
+      console.log(`📏 Tamaño respuesta: ${JSON.stringify(response.data).length} bytes`);
+
+      if (response.status < 200 || response.status >= 300) {
+        console.error(`❌ Error HTTP ${response.status}`);
+        console.error(`📄 Respuesta:`, JSON.stringify(response.data, null, 2));
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(response.data)}`);
+      }
 
       const customers = response.data?.value || [];
+      console.log(`📊 Registros recibidos: ${customers.length}`);
 
       // Transformar a formato DashCore
       return customers.map((c) => ({
@@ -273,7 +377,24 @@ class BusinessCentralConnector extends BaseConnector {
       }));
 
     } catch (error) {
-      console.error('❌ Error al obtener Customers de Business Central:', error.message);
+      const duration = Date.now() - startTime;
+      console.error('\n❌ ========== ERROR EN CUSTOMERS ==========');
+      console.error(`⏱️ Duración antes del error: ${duration}ms`);
+      console.error(`❌ Tipo de error: ${error.name}`);
+      console.error(`💬 Mensaje: ${error.message}`);
+
+      if (error.response) {
+        console.error(`📊 Status Code: ${error.response.status}`);
+        console.error(`📄 Respuesta:`, JSON.stringify(error.response.data, null, 2));
+        console.error(`📋 Headers:`, JSON.stringify(error.response.headers, null, 2));
+      } else if (error.request) {
+        console.error('📡 No se recibió respuesta del servidor');
+        console.error('🔧 Request headers:', JSON.stringify(error.config?.headers, null, 2));
+      } else {
+        console.error('⚙️ Error en configuración:', error.message);
+      }
+
+      console.error('📚 Stack trace:', error.stack);
 
       if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
         console.warn('⚠️ Business Central Docker no está corriendo, retornando datos simulados');
@@ -288,26 +409,73 @@ class BusinessCentralConnector extends BaseConnector {
    * Obtiene Sales Orders para datos financieros
    */
   async getFinanceData(accessToken) {
+    const startTime = Date.now();
+
     try {
-      console.log(`📡 Obteniendo Sales Orders desde Business Central (${this.config.authType.toUpperCase()})`);
+      console.log('\n📡 ========== OBTENIENDO SALES ORDERS ==========');
+      console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+      console.log(`📍 Modo: ${this.config.authType.toUpperCase()}`);
 
-      // OData requiere que el Company ID esté entre comillas simples y URL encoded
-      const encodedCompanyId = encodeURIComponent(`'${this.config.companyId}'`);
+      // Si el endpoint no requiere company ID, usar directamente /salesOrders
+      const useDirectEndpoint = !this.config.companyId || this.config.companyId === '';
+      let url;
 
-      const response = await axios.get(
-        `${this.config.apiUrl}/companies(${encodedCompanyId})/salesOrders`,
-        {
-          headers: this._getAuthHeaders(accessToken),
-          params: {
-            '$top': 100,
-          },
-        }
-      );
+      if (useDirectEndpoint) {
+        url = `${this.config.apiUrl}/salesOrders`;
+        console.log('🔗 Usando endpoint directo (sin company ID)');
+      } else {
+        // OData requiere que el Company ID esté entre comillas simples y URL encoded
+        const encodedCompanyId = encodeURIComponent(`'${this.config.companyId}'`);
+        url = `${this.config.apiUrl}/companies(${encodedCompanyId})/salesOrders`;
+        console.log('🔗 Usando endpoint con company ID');
+      }
 
-      return response.data?.value || [];
+      console.log(`🌐 URL completa: ${url}`);
+      console.log('⏳ Iniciando petición...');
+
+      const response = await axios.get(url, {
+        headers: this._getAuthHeaders(accessToken),
+        params: { '$top': 100 },
+        httpsAgent: httpsAgent, // SSL fix
+        timeout: 300000, // 5 minutos
+        validateStatus: (status) => status >= 200 && status < 600,
+      });
+
+      const duration = Date.now() - startTime;
+      console.log(`✅ Petición completada en: ${duration}ms`);
+      console.log(`📊 Status Code: ${response.status}`);
+      console.log(`📏 Tamaño respuesta: ${JSON.stringify(response.data).length} bytes`);
+
+      if (response.status < 200 || response.status >= 300) {
+        console.error(`❌ Error HTTP ${response.status}`);
+        console.error(`📄 Respuesta:`, JSON.stringify(response.data, null, 2));
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(response.data)}`);
+      }
+
+      const orders = response.data?.value || [];
+      console.log(`📊 Registros recibidos: ${orders.length}`);
+
+      return orders;
 
     } catch (error) {
-      console.error('❌ Error al obtener Sales Orders de Business Central:', error.message);
+      const duration = Date.now() - startTime;
+      console.error('\n❌ ========== ERROR EN SALES ORDERS ==========');
+      console.error(`⏱️ Duración antes del error: ${duration}ms`);
+      console.error(`❌ Tipo de error: ${error.name}`);
+      console.error(`💬 Mensaje: ${error.message}`);
+
+      if (error.response) {
+        console.error(`📊 Status Code: ${error.response.status}`);
+        console.error(`📄 Respuesta:`, JSON.stringify(error.response.data, null, 2));
+        console.error(`📋 Headers:`, JSON.stringify(error.response.headers, null, 2));
+      } else if (error.request) {
+        console.error('📡 No se recibió respuesta del servidor');
+        console.error('🔧 Request headers:', JSON.stringify(error.config?.headers, null, 2));
+      } else {
+        console.error('⚙️ Error en configuración:', error.message);
+      }
+
+      console.error('📚 Stack trace:', error.stack);
 
       if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
         return this._getMockFinanceData();
