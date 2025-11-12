@@ -27,6 +27,7 @@ model Company {
   dashboards Dashboard[]
   connectors Connector[]
   financeData FinanceData[] // ➜ Relación agregada
+  erpConfigs ERPConfig[] // ➜ Configuraciones ERP personalizadas
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 }
@@ -77,4 +78,43 @@ model FinanceData {
   erpId      String
   erp        Erp      @relation(fields: [erpId], references: [id])
   createdAt  DateTime @default(now())
+}
+
+// ========== NUEVOS MODELOS PARA PERSONALIZACIÓN ==========
+
+// Configuración de ERP por cliente
+model ERPConfig {
+  id          String          @id @default(cuid())
+  companyId   String
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  erpType     String          // 'dynamics365', 'sap', 'businesscentral'
+  isActive    Boolean         @default(true)
+  modules     ModuleConfig[]  // Módulos habilitados para este cliente
+  customSettings Json?         // Configuración adicional específica del ERP
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([companyId, erpType]) // Un cliente puede tener solo una config por ERP
+  @@index([companyId])
+  @@index([erpType])
+}
+
+// Configuración de módulos por cliente
+model ModuleConfig {
+  id            String     @id @default(cuid())
+  erpConfigId   String
+  erpConfig     ERPConfig  @relation(fields: [erpConfigId], references: [id], onDelete: Cascade)
+  moduleType    String     // 'leads', 'contacts', 'finance'
+  isEnabled     Boolean    @default(true)
+  displayName   String?    // Nombre personalizado del módulo
+  endpoint      String     // Endpoint del ERP a usar (ej: 'salesOrders', 'salesQuotes', 'customers')
+  fieldMappings Json?      // Mapeo de campos personalizados
+  filters       Json?      // Filtros adicionales (ej: fecha, estado)
+  sortOrder     Int        @default(0) // Orden de visualización
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([erpConfigId, moduleType]) // Un módulo por config de ERP
+  @@index([erpConfigId])
+  @@index([moduleType])
 }

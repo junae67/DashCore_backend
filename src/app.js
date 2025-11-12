@@ -11,6 +11,7 @@ const app = express();
 const logger = require('./middlewares/logger');
 const errorHandler = require('./middlewares/errorHandle');
 const erpRoutes = require('./routes/erp.routes');
+const erpConfigRoutes = require('./routes/erpConfig.routes');
 const cors = require('cors');
 const externalRoutes = require('./routes/external');
 
@@ -32,6 +33,7 @@ app.use('/api', externalRoutes);
 
 // Todas tus rutas ERP ahora también manejan el debug de env
 app.use('/api/erp', erpRoutes);
+app.use('/api/config', erpConfigRoutes);
 
 // Ruta raíz simple
 app.get('/', (req, res) => {

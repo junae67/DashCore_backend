@@ -43,10 +43,12 @@ exports.getLeads = async (req, res) => {
   try {
     const connector = getConnector(erpType);
     const dbConnector = req.connector; // Viene del authMiddleware
+    const companyId = req.companyId; // ID de la empresa del middleware
 
-    console.log(`📊 Obteniendo leads de ${erpType}`);
+    console.log(`📊 Obteniendo leads de ${erpType} para company ${companyId}`);
 
-    const leads = await connector.getLeads(dbConnector.accessToken);
+    // Pasar companyId al connector para configuración personalizada
+    const leads = await connector.getLeads(dbConnector.accessToken, companyId);
 
     console.log(`✅ ${leads.length} leads obtenidos de ${erpType}`);
     res.json(leads);

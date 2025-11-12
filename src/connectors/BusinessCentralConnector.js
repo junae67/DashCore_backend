@@ -6,6 +6,9 @@ const axios = require('axios');
 const https = require('https');
 const jwt = require('jsonwebtoken');
 const BaseConnector = require('./BaseConnector');
+const { PrismaClient } = require('@prisma/client');
+
+const prisma = new PrismaClient();
 
 // Agente HTTPS que ignora errores SSL (solo para desarrollo/ngrok)
 const httpsAgent = new https.Agent({
@@ -211,28 +214,95 @@ class BusinessCentralConnector extends BaseConnector {
   }
 
   /**
-   * Obtiene Sales Quotes (equivalente a Leads/Opportunities)
+   * Obtiene la configuración de endpoint para un módulo específico
+   * @param {string} companyId - ID de la compañía
+   * @param {string} moduleType - Tipo de módulo ('leads', 'contacts', 'finance')
+   * @returns {Promise<{endpoint: string, config: object}>}
    */
-  async getLeads(accessToken) {
+  async _getModuleConfig(companyId, moduleType) {
+    try {
+      const erpConfig = await prisma.eRPConfig.findUnique({
+        where: {
+          companyId_erpType: {
+            companyId,
+            erpType: 'businesscentral',
+          },
+        },
+        include: {
+          modules: {
+            where: {
+              moduleType,
+              isEnabled: true,
+            },
+          },
+        },
+      });
+
+      if (erpConfig && erpConfig.modules.length > 0) {
+        const moduleConfig = erpConfig.modules[0];
+        console.log(`📦 Usando endpoint configurado: ${moduleConfig.endpoint} para módulo ${moduleType}`);
+        return {
+          endpoint: moduleConfig.endpoint,
+          config: moduleConfig,
+        };
+      }
+
+      // Fallback a endpoints por defecto
+      const defaultEndpoints = {
+        leads: 'salesOrders', // Cambiado de salesQuotes a salesOrders
+        contacts: 'customers',
+        finance: 'salesInvoices',
+      };
+
+      console.log(`⚠️  No hay configuración personalizada, usando endpoint por defecto: ${defaultEndpoints[moduleType]}`);
+      return {
+        endpoint: defaultEndpoints[moduleType],
+        config: null,
+      };
+    } catch (error) {
+      console.error(`❌ Error al obtener configuración de módulo: ${error.message}`);
+      // Fallback en caso de error
+      const defaultEndpoints = {
+        leads: 'salesOrders',
+        contacts: 'customers',
+        finance: 'salesInvoices',
+      };
+      return {
+        endpoint: defaultEndpoints[moduleType],
+        config: null,
+      };
+    }
+  }
+
+  /**
+   * Obtiene Sales Quotes (equivalente a Leads/Opportunities)
+   * NOTA: El endpoint real ahora depende de la configuración del cliente
+   */
+  async getLeads(accessToken, companyId = null) {
     const startTime = Date.now();
 
     try {
-      console.log('\n📡 ========== OBTENIENDO SALES QUOTES ==========');
+      console.log('\n📡 ========== OBTENIENDO LEADS/OPPORTUNITIES ==========');
       console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
       console.log(`📍 Modo: ${this.config.authType.toUpperCase()}`);
 
-      // Si el endpoint no requiere company ID, usar directamente /salesQuotes
+      // Obtener configuración de endpoint para el módulo 'leads'
+      const { endpoint } = companyId
+        ? await this._getModuleConfig(companyId, 'leads')
+        : { endpoint: 'salesOrders' }; // Fallback si no se proporciona companyId
+
+      // Si el endpoint no requiere company ID, usar directamente el endpoint
       const useDirectEndpoint = !this.config.companyId || this.config.companyId === '';
       let url;
 
       if (useDirectEndpoint) {
-        url = `${this.config.apiUrl}/salesQuotes`;
-        console.log('🔗 Usando endpoint directo (sin company ID)');
+        url = `${this.config.apiUrl}/${endpoint}`;
+        console.log(`🔗 Usando endpoint directo: /${endpoint}`);
       } else {
         // OData requiere que el Company ID esté entre comillas simples y URL encoded
         const encodedCompanyId = encodeURIComponent(`'${this.config.companyId}'`);
-        url = `${this.config.apiUrl}/companies(${encodedCompanyId})/salesQuotes`;
-        console.log('🔗 Usando endpoint con company ID');
+        url = `${this.config.apiUrl}/companies(${encodedCompanyId})/${endpoint}`;
+        console.log(`🔗 Usando endpoint con company ID: /companies(...)/${endpoint}`);
       }
 
       console.log(`🌐 URL completa: ${url}`);
