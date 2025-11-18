@@ -1,3 +1,53 @@
+/**
+ * ARCHIVO: connectors/BusinessCentralConnector.js
+ * DESCRIPCIÓN: Conector para Microsoft Dynamics 365 Business Central
+ *
+ * RESPONSABILIDADES:
+ * - Soportar dos modos de autenticación: Basic Auth (local) y OAuth2 (cloud)
+ * - Conectar con Business Central en Docker (desarrollo) o Cloud (producción)
+ * - Obtener Sales Orders, Customers y datos financieros
+ * - Generar JWTs personalizados para modo Basic Auth
+ * - Consultar configuración de endpoints personalizados desde BD
+ * - Proporcionar datos mock cuando Docker no está disponible
+ *
+ * DEPENDENCIAS:
+ * - axios: Cliente HTTP para peticiones
+ * - https: Para agente HTTPS con SSL deshabilitado (desarrollo)
+ * - jsonwebtoken: Para generar/verificar JWTs
+ * - ./BaseConnector: Clase padre
+ * - @prisma/client: Para consultar configuración de endpoints
+ *
+ * RELACIONES:
+ * - Extiende BaseConnector
+ * - Usado por erp.controller.js
+ * - Consulta tabla ERPConfig para endpoints personalizados
+ * - Se instancia como singleton en connectors/index.js
+ *
+ * MODOS DE OPERACIÓN:
+ * 1. LOCAL (BC_AUTH_TYPE=basic):
+ *    - Usa Basic Auth con usuario/contraseña
+ *    - Típicamente con Docker en localhost
+ *    - Genera JWT firmado con credenciales incluidas
+ * 2. CLOUD (BC_AUTH_TYPE=oauth2):
+ *    - Usa OAuth2 con Azure AD
+ *    - Para Business Central Cloud
+ *    - Similar a Dynamics 365
+ *
+ * CONFIGURACIÓN REQUERIDA (.env):
+ * - BC_AUTH_TYPE: 'basic' o 'oauth2'
+ * - BC_API_URL: URL base de la API
+ * - BC_COMPANY_ID: ID de compañía (opcional)
+ * - Para Basic Auth: BC_USERNAME, BC_PASSWORD
+ * - Para OAuth2: BC_CLIENT_ID, BC_CLIENT_SECRET, BC_TENANT_ID, BC_REDIRECT_URI
+ *
+ * ENDPOINTS PRINCIPALES:
+ * - /customers: Clientes
+ * - /salesOrders: Órdenes de venta
+ * - /salesQuotes: Cotizaciones
+ * - /salesInvoices: Facturas
+ * - Soporta endpoints configurables por cliente desde BD
+ */
+
 // src/connectors/BusinessCentralConnector.js
 // Conector para Microsoft Dynamics 365 Business Central
 // Soporta: Local (Docker con Basic Auth) y Cloud (OAuth2)

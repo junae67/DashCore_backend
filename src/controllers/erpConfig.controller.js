@@ -1,3 +1,42 @@
+/**
+ * ARCHIVO: controllers/erpConfig.controller.js
+ * DESCRIPCIÓN: Controlador para configuración personalizada de ERPs por cliente
+ *
+ * RESPONSABILIDADES:
+ * - Gestionar configuración específica de ERP para cada compañía
+ * - Crear configuraciones por defecto según tipo de ERP
+ * - Permitir personalización de endpoints, módulos y mapeos de campos
+ * - Gestionar habilitación/deshabilitación de módulos
+ * - Mantener configuración de filtros y ordenamiento
+ *
+ * DEPENDENCIAS:
+ * - @prisma/client: Para CRUD de ERPConfig y ModuleConfig
+ *
+ * RELACIONES:
+ * - Usado por rutas en erpConfig.routes.js
+ * - Requiere identifyCompany middleware para req.companyId
+ * - Trabaja con tablas: ERPConfig, ModuleConfig
+ * - La configuración es consultada por conectores (BusinessCentralConnector)
+ * - Permite personalizar endpoints para cada cliente
+ *
+ * ENDPOINTS:
+ * - GET /api/config/erp/:erpType → getERPConfig()
+ * - PUT /api/config/erp/:erpType → updateERPConfig()
+ * - GET /api/config/modules → getModules()
+ * - PUT /api/config/modules/:moduleId → updateModule()
+ *
+ * CONFIGURACIONES POR DEFECTO:
+ * - dynamics365: opportunities, contacts, salesorders
+ * - businesscentral: salesOrders, customers, salesInvoices
+ * - sap: BusinessPartners, BusinessPartners, Orders
+ *
+ * FUNCIONALIDAD CLAVE:
+ * - Cada cliente puede tener endpoints diferentes para el mismo módulo
+ * - Ejemplo: Cliente A usa 'salesQuotes' para leads, Cliente B usa 'salesOrders'
+ * - Soporta mapeo de campos personalizados (fieldMappings)
+ * - Soporta filtros OData personalizados
+ */
+
 // src/controllers/erpConfig.controller.js
 // Controlador para gestionar configuración personalizada de ERPs por cliente
 

@@ -1,3 +1,52 @@
+/**
+ * ARCHIVO: controllers/businessCentralAuth.controller.js
+ * DESCRIPCIÓN: Autenticación directa para Business Central (modo local/básico)
+ *
+ * RESPONSABILIDADES:
+ * - Proporcionar autenticación Basic Auth para Business Central Docker
+ * - Generar JWTs firmados que contienen credenciales Basic Auth
+ * - Permitir autenticación sin flujo OAuth2 (para desarrollo local)
+ * - Crear/actualizar registros de Company y Connector en BD
+ * - Soportar modo desarrollo con credenciales del .env
+ *
+ * DEPENDENCIAS:
+ * - @prisma/client: Para guardar tokens y configuración
+ * - jsonwebtoken: Para generar JWTs firmados
+ *
+ * RELACIONES:
+ * - Usado por rutas en erp.routes.js
+ * - Alternativa a auth.controller.js para BC modo local
+ * - Los JWTs generados incluyen credenciales Basic Auth en el payload
+ * - BusinessCentralConnector extrae credenciales del JWT
+ * - No requiere flujo OAuth2 completo (ideal para desarrollo)
+ *
+ * ENDPOINTS:
+ * - POST /api/erp/businesscentral/auth/direct → directAuth()
+ * - GET /api/erp/businesscentral/auth → startDirectAuth()
+ *
+ * FLUJO DE AUTENTICACIÓN:
+ * 1. Usuario envía username/password
+ * 2. Backend genera Basic Auth en base64
+ * 3. Crea JWT firmado con credenciales incluidas en payload
+ * 4. Guarda JWT en tabla Connector
+ * 5. Retorna access_token e id_token al frontend
+ * 6. En peticiones posteriores, BC connector decodifica JWT y usa Basic Auth
+ *
+ * FORMATO DEL JWT:
+ * {
+ *   preferred_username: 'admin',
+ *   email: 'admin@businesscentral.local',
+ *   auth_mode: 'basic',
+ *   basic_auth: 'base64_credentials', ← credenciales incluidas
+ *   exp: timestamp
+ * }
+ *
+ * USO:
+ * - Desarrollo local con Business Central Docker
+ * - Evita configuración compleja de OAuth2
+ * - NO usar en producción (credenciales en token)
+ */
+
 // src/controllers/businessCentralAuth.controller.js
 // Autenticación directa para Business Central (modo local/básico)
 

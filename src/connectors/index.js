@@ -1,3 +1,34 @@
+/**
+ * ARCHIVO: connectors/index.js
+ * DESCRIPCIÓN: Factory Pattern para gestión de conectores ERP
+ *
+ * RESPONSABILIDADES:
+ * - Crear y mantener instancias singleton de cada conector
+ * - Proporcionar método factory getConnector() para obtener conector por tipo
+ * - Exponer lista de ERPs soportados
+ * - Centralizar la gestión de todos los conectores
+ *
+ * DEPENDENCIAS:
+ * - ./DynamicsConnector: Conector para Dynamics 365
+ * - ./SAPConnector: Conector para SAP BTP
+ * - ./BusinessCentralConnector: Conector para Business Central
+ *
+ * RELACIONES:
+ * - Usado por todos los controladores que necesitan conectores
+ * - Importado por erp.controller.js, dynamics.controller.js
+ * - Los controladores llaman getConnector(erpType) para obtener instancia
+ * - Mantiene una única instancia de cada conector (singleton)
+ *
+ * PATRÓN DE DISEÑO:
+ * - Factory Pattern: getConnector() crea/retorna instancia según tipo
+ * - Singleton Pattern: Solo una instancia de cada conector
+ *
+ * USO:
+ * const { getConnector } = require('./connectors');
+ * const connector = getConnector('dynamics365');
+ * await connector.getLeads(accessToken);
+ */
+
 // src/connectors/index.js
 // Factory para obtener el conector adecuado según el tipo de ERP
 

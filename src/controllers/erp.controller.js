@@ -68,10 +68,12 @@ exports.getContacts = async (req, res) => {
   try {
     const connector = getConnector(erpType);
     const dbConnector = req.connector;
+    const companyId = req.companyId; // ID de la empresa del middleware
 
-    console.log(`📊 Obteniendo contactos de ${erpType}`);
+    console.log(`📊 Obteniendo contactos de ${erpType} para company ${companyId}`);
 
-    const contacts = await connector.getContacts(dbConnector.accessToken);
+    // Pasar companyId al connector para configuración personalizada
+    const contacts = await connector.getContacts(dbConnector.accessToken, companyId);
 
     console.log(`✅ ${contacts.length} contactos obtenidos de ${erpType}`);
     res.json(contacts);
@@ -91,10 +93,12 @@ exports.getFinanceData = async (req, res) => {
   try {
     const connector = getConnector(erpType);
     const dbConnector = req.connector;
+    const companyId = req.companyId; // ID de la empresa del middleware
 
-    console.log(`📊 Obteniendo datos financieros de ${erpType}`);
+    console.log(`📊 Obteniendo datos financieros de ${erpType} para company ${companyId}`);
 
-    const financeData = await connector.getFinanceData(dbConnector.accessToken);
+    // Pasar companyId al connector para configuración personalizada
+    const financeData = await connector.getFinanceData(dbConnector.accessToken, companyId);
 
     console.log(`✅ ${financeData.length} registros financieros obtenidos de ${erpType}`);
     res.json(financeData);

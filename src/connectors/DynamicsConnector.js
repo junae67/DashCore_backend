@@ -1,8 +1,43 @@
+/**
+ * ARCHIVO: connectors/DynamicsConnector.js
+ * DESCRIPCIÓN: Conector para Microsoft Dynamics 365 CRM
+ *
+ * RESPONSABILIDADES:
+ * - Implementar autenticación OAuth2 con Microsoft Azure AD
+ * - Obtener leads, contactos y datos financieros de Dynamics 365
+ * - Interactuar con API OData v9.2 de Dynamics 365
+ * - Manejar tokens de acceso y refresh tokens
+ *
+ * DEPENDENCIAS:
+ * - axios: Cliente HTTP para peticiones a Dynamics API
+ * - ./BaseConnector: Clase padre con interfaz común
+ *
+ * RELACIONES:
+ * - Extiende BaseConnector
+ * - Usado por erp.controller.js y dynamics.controller.js
+ * - Se instancia como singleton en connectors/index.js
+ * - Requiere variables de entorno DYNAMICS_*
+ *
+ * ENDPOINTS PRINCIPALES:
+ * - OAuth: login.microsoftonline.com/organizations/oauth2/v2.0/
+ * - API: {DYNAMICS_RESOURCE}/api/data/v9.2/
+ * - Entidades: leads, contacts, salesorders
+ *
+ * CONFIGURACIÓN REQUERIDA (.env):
+ * - DYNAMICS_CLIENT_ID
+ * - DYNAMICS_CLIENT_SECRET
+ * - DYNAMICS_REDIRECT_URI
+ * - DYNAMICS_RESOURCE (URL de la instancia)
+ */
+
 // src/connectors/DynamicsConnector.js
 // Conector para Microsoft Dynamics 365
 
 const axios = require('axios');
 const BaseConnector = require('./BaseConnector');
+const { PrismaClient } = require('@prisma/client');
+
+const prisma = new PrismaClient();
 
 class DynamicsConnector extends BaseConnector {
   constructor() {
@@ -12,6 +47,67 @@ class DynamicsConnector extends BaseConnector {
       redirectUri: process.env.DYNAMICS_REDIRECT_URI,
       resource: process.env.DYNAMICS_RESOURCE,
     });
+  }
+
+  /**
+   * Obtiene la configuración de endpoint para un módulo específico
+   * @param {string} companyId - ID de la compañía
+   * @param {string} moduleType - Tipo de módulo ('leads', 'contacts', 'finance')
+   * @returns {Promise<{endpoint: string, config: object}>}
+   */
+  async _getModuleConfig(companyId, moduleType) {
+    try {
+      const erpConfig = await prisma.eRPConfig.findUnique({
+        where: {
+          companyId_erpType: {
+            companyId,
+            erpType: 'dynamics365',
+          },
+        },
+        include: {
+          modules: {
+            where: {
+              moduleType,
+              isEnabled: true,
+            },
+          },
+        },
+      });
+
+      if (erpConfig && erpConfig.modules.length > 0) {
+        const moduleConfig = erpConfig.modules[0];
+        console.log(`📦 Usando endpoint configurado: ${moduleConfig.endpoint} para módulo ${moduleType}`);
+        return {
+          endpoint: moduleConfig.endpoint,
+          config: moduleConfig,
+        };
+      }
+
+      // Fallback a endpoints por defecto
+      const defaultEndpoints = {
+        leads: 'leads',
+        contacts: 'contacts',
+        finance: 'salesorders',
+      };
+
+      console.log(`⚠️  No hay configuración personalizada, usando endpoint por defecto: ${defaultEndpoints[moduleType]}`);
+      return {
+        endpoint: defaultEndpoints[moduleType],
+        config: null,
+      };
+    } catch (error) {
+      console.error(`❌ Error al obtener configuración de módulo: ${error.message}`);
+      // Fallback en caso de error
+      const defaultEndpoints = {
+        leads: 'leads',
+        contacts: 'contacts',
+        finance: 'salesorders',
+      };
+      return {
+        endpoint: defaultEndpoints[moduleType],
+        config: null,
+      };
+    }
   }
 
   getAuthUrl(state = '') {
@@ -74,9 +170,16 @@ class DynamicsConnector extends BaseConnector {
     }
   }
 
-  async getLeads(accessToken) {
+  async getLeads(accessToken, companyId = null) {
     try {
-      const response = await axios.get(`${this.config.resource}/api/data/v9.2/leads`, {
+      // Obtener configuración de endpoint para el módulo 'leads'
+      const { endpoint } = companyId
+        ? await this._getModuleConfig(companyId, 'leads')
+        : { endpoint: 'leads' }; // Fallback si no se proporciona companyId
+
+      console.log(`📡 Consultando endpoint: ${endpoint} para leads de Dynamics 365`);
+
+      const response = await axios.get(`${this.config.resource}/api/data/v9.2/${endpoint}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           Accept: 'application/json',
@@ -92,9 +195,16 @@ class DynamicsConnector extends BaseConnector {
     }
   }
 
-  async getContacts(accessToken) {
+  async getContacts(accessToken, companyId = null) {
     try {
-      const response = await axios.get(`${this.config.resource}/api/data/v9.2/contacts`, {
+      // Obtener configuración de endpoint para el módulo 'contacts'
+      const { endpoint } = companyId
+        ? await this._getModuleConfig(companyId, 'contacts')
+        : { endpoint: 'contacts' }; // Fallback si no se proporciona companyId
+
+      console.log(`📡 Consultando endpoint: ${endpoint} para contactos de Dynamics 365`);
+
+      const response = await axios.get(`${this.config.resource}/api/data/v9.2/${endpoint}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           Accept: 'application/json',
@@ -110,10 +220,16 @@ class DynamicsConnector extends BaseConnector {
     }
   }
 
-  async getFinanceData(accessToken) {
+  async getFinanceData(accessToken, companyId = null) {
     try {
-      // Ejemplo: Obtener Sales Orders
-      const response = await axios.get(`${this.config.resource}/api/data/v9.2/salesorders`, {
+      // Obtener configuración de endpoint para el módulo 'finance'
+      const { endpoint } = companyId
+        ? await this._getModuleConfig(companyId, 'finance')
+        : { endpoint: 'salesorders' }; // Fallback si no se proporciona companyId
+
+      console.log(`📡 Consultando endpoint: ${endpoint} para finanzas de Dynamics 365`);
+
+      const response = await axios.get(`${this.config.resource}/api/data/v9.2/${endpoint}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           Accept: 'application/json',

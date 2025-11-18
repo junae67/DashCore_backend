@@ -1,8 +1,50 @@
+/**
+ * ARCHIVO: connectors/SAPConnector.js
+ * DESCRIPCIÓN: Conector para SAP Business Technology Platform (BTP)
+ *
+ * RESPONSABILIDADES:
+ * - Implementar autenticación OAuth2 con SAP BTP
+ * - Obtener datos desde SAP API Business Hub (sandbox con datos reales)
+ * - Obtener leads (Sales Quotations), contactos (Business Partners) y finanzas
+ * - Proporcionar datos mock cuando no hay conexión real
+ * - Transformar datos de SAP OData al formato DashCore
+ *
+ * DEPENDENCIAS:
+ * - axios: Cliente HTTP para peticiones a SAP APIs
+ * - ./BaseConnector: Clase padre con interfaz común
+ *
+ * RELACIONES:
+ * - Extiende BaseConnector
+ * - Usado por erp.controller.js
+ * - Se instancia como singleton en connectors/index.js
+ * - Soporta dos modos: API Hub (sandbox) y BTP Trial (sin datos)
+ *
+ * ENDPOINTS:
+ * - OAuth: Variable SAP_OAUTH_URL
+ * - API Hub: SAP_API_HUB_URL (datos reales de sandbox)
+ * - BTP Trial: SAP_API_URL (usualmente sin datos)
+ *
+ * CONFIGURACIÓN REQUERIDA (.env):
+ * - SAP_CLIENT_ID, SAP_CLIENT_SECRET
+ * - SAP_OAUTH_URL, SAP_TOKEN_URL
+ * - SAP_API_URL, SAP_REDIRECT_URI
+ * - SAP_API_HUB_KEY (opcional, para sandbox con datos)
+ * - SAP_API_HUB_URL (opcional, para sandbox)
+ *
+ * ENTIDADES SAP UTILIZADAS:
+ * - API_SALES_QUOTATION_SRV/A_SalesQuotation (leads)
+ * - API_BUSINESS_PARTNER/A_BusinessPartner (contactos)
+ * - API_SALES_ORDER_SRV/A_SalesOrder (finanzas)
+ */
+
 // src/connectors/SAPConnector.js
 // Conector para SAP Business Technology Platform (BTP)
 
 const axios = require('axios');
 const BaseConnector = require('./BaseConnector');
+const { PrismaClient } = require('@prisma/client');
+
+const prisma = new PrismaClient();
 
 class SAPConnector extends BaseConnector {
   constructor() {
@@ -17,6 +59,67 @@ class SAPConnector extends BaseConnector {
       apiHubKey: process.env.SAP_API_HUB_KEY,
       apiHubUrl: process.env.SAP_API_HUB_URL,
     });
+  }
+
+  /**
+   * Obtiene la configuración de endpoint para un módulo específico
+   * @param {string} companyId - ID de la compañía
+   * @param {string} moduleType - Tipo de módulo ('leads', 'contacts', 'finance')
+   * @returns {Promise<{endpoint: string, config: object}>}
+   */
+  async _getModuleConfig(companyId, moduleType) {
+    try {
+      const erpConfig = await prisma.eRPConfig.findUnique({
+        where: {
+          companyId_erpType: {
+            companyId,
+            erpType: 'sap',
+          },
+        },
+        include: {
+          modules: {
+            where: {
+              moduleType,
+              isEnabled: true,
+            },
+          },
+        },
+      });
+
+      if (erpConfig && erpConfig.modules.length > 0) {
+        const moduleConfig = erpConfig.modules[0];
+        console.log(`📦 Usando endpoint configurado: ${moduleConfig.endpoint} para módulo ${moduleType}`);
+        return {
+          endpoint: moduleConfig.endpoint,
+          config: moduleConfig,
+        };
+      }
+
+      // Fallback a endpoints por defecto
+      const defaultEndpoints = {
+        leads: 'API_SALES_QUOTATION_SRV/A_SalesQuotation',
+        contacts: 'API_BUSINESS_PARTNER/A_BusinessPartner',
+        finance: 'API_SALES_ORDER_SRV/A_SalesOrder',
+      };
+
+      console.log(`⚠️  No hay configuración personalizada, usando endpoint por defecto: ${defaultEndpoints[moduleType]}`);
+      return {
+        endpoint: defaultEndpoints[moduleType],
+        config: null,
+      };
+    } catch (error) {
+      console.error(`❌ Error al obtener configuración de módulo: ${error.message}`);
+      // Fallback en caso de error
+      const defaultEndpoints = {
+        leads: 'API_SALES_QUOTATION_SRV/A_SalesQuotation',
+        contacts: 'API_BUSINESS_PARTNER/A_BusinessPartner',
+        finance: 'API_SALES_ORDER_SRV/A_SalesOrder',
+      };
+      return {
+        endpoint: defaultEndpoints[moduleType],
+        config: null,
+      };
+    }
   }
 
   getAuthUrl(state = '') {
@@ -75,14 +178,21 @@ class SAPConnector extends BaseConnector {
     }
   }
 
-  async getLeads(accessToken) {
+  async getLeads(accessToken, companyId = null) {
+    // Obtener configuración de endpoint para el módulo 'leads'
+    const { endpoint } = companyId
+      ? await this._getModuleConfig(companyId, 'leads')
+      : { endpoint: 'API_SALES_QUOTATION_SRV/A_SalesQuotation' }; // Fallback
+
+    console.log(`📡 Consultando endpoint: ${endpoint} para leads de SAP`);
+
     // Si tenemos API Hub Key, usar sandbox con datos reales
     if (this.config.apiHubKey && this.config.apiHubKey !== 'YOUR_API_KEY_HERE') {
       try {
         console.log('📡 Obteniendo leads desde SAP API Business Hub (datos reales)');
 
-        // SAP API Hub - Sales Opportunities
-        const response = await axios.get(`${this.config.apiHubUrl}/sap/opu/odata/sap/API_SALES_QUOTATION_SRV/A_SalesQuotation`, {
+        // SAP API Hub - Usar endpoint configurado
+        const response = await axios.get(`${this.config.apiHubUrl}/sap/opu/odata/sap/${endpoint}`, {
           headers: {
             'APIKey': this.config.apiHubKey,
             'Accept': 'application/json',
@@ -129,7 +239,7 @@ class SAPConnector extends BaseConnector {
 
     // Fallback: Intentar SAP BTP Trial (probablemente sin datos)
     try {
-      const response = await axios.get(`${this.config.apiUrl}/sap/opu/odata/sap/API_OPPORTUNITY/Opportunity`, {
+      const response = await axios.get(`${this.config.apiUrl}/sap/opu/odata/sap/${endpoint}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           Accept: 'application/json',
@@ -144,13 +254,20 @@ class SAPConnector extends BaseConnector {
     }
   }
 
-  async getContacts(accessToken) {
+  async getContacts(accessToken, companyId = null) {
+    // Obtener configuración de endpoint para el módulo 'contacts'
+    const { endpoint } = companyId
+      ? await this._getModuleConfig(companyId, 'contacts')
+      : { endpoint: 'API_BUSINESS_PARTNER/A_BusinessPartner' }; // Fallback
+
+    console.log(`📡 Consultando endpoint: ${endpoint} para contactos de SAP`);
+
     // Si tenemos API Hub Key, usar sandbox con datos reales
     if (this.config.apiHubKey && this.config.apiHubKey !== 'YOUR_API_KEY_HERE') {
       try {
         console.log('📡 Obteniendo contactos desde SAP API Business Hub (datos reales)');
 
-        const response = await axios.get(`${this.config.apiHubUrl}/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner`, {
+        const response = await axios.get(`${this.config.apiHubUrl}/sap/opu/odata/sap/${endpoint}`, {
           headers: {
             'APIKey': this.config.apiHubKey,
             'Accept': 'application/json',
@@ -190,7 +307,7 @@ class SAPConnector extends BaseConnector {
 
     // Fallback: Intentar SAP BTP Trial
     try {
-      const response = await axios.get(`${this.config.apiUrl}/sap/opu/odata/sap/API_BUSINESS_PARTNER/A_BusinessPartner`, {
+      const response = await axios.get(`${this.config.apiUrl}/sap/opu/odata/sap/${endpoint}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           Accept: 'application/json',
@@ -205,9 +322,16 @@ class SAPConnector extends BaseConnector {
     }
   }
 
-  async getFinanceData(accessToken) {
+  async getFinanceData(accessToken, companyId = null) {
     try {
-      const response = await axios.get(`${this.config.apiUrl}/sap/opu/odata/sap/API_SALES_ORDER_SRV/A_SalesOrder`, {
+      // Obtener configuración de endpoint para el módulo 'finance'
+      const { endpoint } = companyId
+        ? await this._getModuleConfig(companyId, 'finance')
+        : { endpoint: 'API_SALES_ORDER_SRV/A_SalesOrder' }; // Fallback
+
+      console.log(`📡 Consultando endpoint: ${endpoint} para finanzas de SAP`);
+
+      const response = await axios.get(`${this.config.apiUrl}/sap/opu/odata/sap/${endpoint}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           Accept: 'application/json',

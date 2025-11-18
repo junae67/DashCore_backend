@@ -1,3 +1,41 @@
+/**
+ * ARCHIVO: controllers/externalFinance.js
+ * DESCRIPCIÓN: Controlador para recibir y almacenar datos financieros externos
+ *
+ * RESPONSABILIDADES:
+ * - Recibir datos financieros desde sistemas externos o frontend
+ * - Validar y guardar datos en tabla FinanceData
+ * - Asociar datos con Company y ERP correspondiente
+ * - Proporcionar endpoint para consultar datos guardados
+ *
+ * DEPENDENCIAS:
+ * - ../lib/prisma: Cliente de base de datos
+ *
+ * RELACIONES:
+ * - Usado por rutas en external.js
+ * - Requiere identifyCompany middleware para req.companyId y req.erpId
+ * - Guarda datos en tabla FinanceData
+ * - Permite almacenar datos de leads, contactos, órdenes, etc.
+ *
+ * ENDPOINTS:
+ * - POST /api/finance → receiveFinanceData()
+ * - GET /api/finance → getFinanceData()
+ *
+ * FORMATO DE DATOS:
+ * {
+ *   type: 'leads' | 'contacts' | 'orders' | 'invoices',
+ *   data: [array de objetos],
+ *   companyId: 'uuid',
+ *   erpId: 'uuid'
+ * }
+ *
+ * USO:
+ * - Almacenar snapshots de datos de ERPs
+ * - Permitir acceso offline a datos
+ * - Sincronización de datos desde frontend
+ * - Almacenar datos transformados/procesados
+ */
+
 // src/controllers/externalFinance.js
 const prisma = require('../lib/prisma');
 

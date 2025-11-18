@@ -1,3 +1,32 @@
+/**
+ * ARCHIVO: connectors/BaseConnector.js
+ * DESCRIPCIÓN: Clase base abstracta para todos los conectores ERP
+ *
+ * RESPONSABILIDADES:
+ * - Definir interfaz común para todos los conectores de ERP
+ * - Proporcionar métodos abstractos que deben implementar las clases hijas
+ * - Proveer utilidades comunes como decodificación de JWT
+ *
+ * DEPENDENCIAS:
+ * - Buffer: API nativa de Node.js para manejo de datos binarios
+ *
+ * RELACIONES:
+ * - Clase padre de DynamicsConnector, SAPConnector, BusinessCentralConnector
+ * - Define el contrato que todos los conectores deben cumplir
+ * - Los métodos abstractos lanzan errores si no son implementados
+ *
+ * MÉTODOS ABSTRACTOS (deben implementarse en clases hijas):
+ * - getAuthUrl(): Genera URL de autorización OAuth2
+ * - authenticate(): Intercambia código por tokens
+ * - refreshToken(): Renueva access token
+ * - getLeads(): Obtiene oportunidades/leads del ERP
+ * - getContacts(): Obtiene contactos del ERP
+ * - getFinanceData(): Obtiene datos financieros del ERP
+ *
+ * MÉTODOS CONCRETOS:
+ * - decodeJWT(): Decodifica JWT sin verificar firma (util para debugging)
+ */
+
 // src/connectors/BaseConnector.js
 // Clase base abstracta para todos los conectores ERP
 
