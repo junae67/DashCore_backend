@@ -49,7 +49,8 @@ const router = express.Router();
 const erpConfigController = require('../controllers/erpConfig.controller');
 const authenticateToken = require('../middlewares/authMiddleware');
 
-const { identifyCompany } = require('../middlewares/identifyCompany');
+const identifyCompany = require('../middlewares/identifyCompany');
+
 
 // Middleware: Autenticación y identificación de empresa
 router.use(authenticateToken);
