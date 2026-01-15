@@ -7,12 +7,10 @@
  * - Definir endpoints para obtener datos (leads, contactos, finanzas)
  * - Mantener retrocompatibilidad con rutas legacy de Dynamics
  * - Aplicar middlewares de autenticación donde sea necesario
- * - Gestionar rutas especiales para Business Central (autenticación directa)
  *
  * DEPENDENCIAS:
  * - express: Router de Express
  * - ../controllers/auth.controller: OAuth genérico
- * - ../controllers/businessCentralAuth.controller: Auth directa BC
  * - ../controllers/erp.controller: Operaciones de datos
  * - ../middlewares/authMiddleware: Validación de tokens
  *
@@ -26,8 +24,6 @@
  * AUTENTICACIÓN:
  * - GET /api/erp/:erpType/auth → Inicia OAuth2
  * - GET /api/erp/:erpType/callback → Callback OAuth2
- * - POST /api/erp/businesscentral/auth/direct → Auth directa BC
- * - GET /api/erp/businesscentral/auth → Auth directa BC (GET)
  *
  * DATOS (requieren authMiddleware):
  * - GET /api/erp/:erpType/leads → Obtiene leads
@@ -45,10 +41,6 @@
  *
  * DEBUG (solo desarrollo):
  * - GET /api/erp/debug/env → Variables de entorno
- *
- * IMPORTANTE:
- * - Las rutas de Business Central deben ir ANTES de /:erpType
- * - Esto asegura que Express las matchee correctamente
  */
 
 // src/routes/erp.routes.js
@@ -57,7 +49,7 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
-const bcAuthController = require('../controllers/businessCentralAuth.controller');
+
 const erpController = require('../controllers/erp.controller');
 const authMiddleware = require('../middlewares/authMiddleware');
 
@@ -83,15 +75,7 @@ router.get('/dynamics/contacts', authMiddleware, (req, res) => {
   erpController.getContacts(req, res);
 });
 
-// ========== BUSINESS CENTRAL (Autenticación Directa) ==========
-// IMPORTANTE: Estas rutas específicas DEBEN ir ANTES de las rutas genéricas /:erpType
-// para que Express las matchee correctamente
 
-// POST para autenticación directa (modo básico)
-router.post('/businesscentral/auth/direct', bcAuthController.directAuth);
-
-// GET sobrescribe el flujo OAuth para BC y usa autenticación directa
-router.get('/businesscentral/auth', bcAuthController.startDirectAuth);
 
 // ========== AUTENTICACIÓN OAUTH2 (Multi-ERP) ==========
 // Inicia el flujo OAuth2 para cualquier ERP

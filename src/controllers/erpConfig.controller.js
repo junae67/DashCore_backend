@@ -16,7 +16,7 @@
  * - Usado por rutas en erpConfig.routes.js
  * - Requiere identifyCompany middleware para req.companyId
  * - Trabaja con tablas: ERPConfig, ModuleConfig
- * - La configuración es consultada por conectores (BusinessCentralConnector)
+ * - La configuración es consultada por conectores
  * - Permite personalizar endpoints para cada cliente
  *
  * ENDPOINTS:
@@ -27,7 +27,6 @@
  *
  * CONFIGURACIONES POR DEFECTO:
  * - dynamics365: opportunities, contacts, salesorders
- * - businesscentral: salesOrders, customers, salesInvoices
  * - sap: BusinessPartners, BusinessPartners, Orders
  *
  * FUNCIONALIDAD CLAVE:
@@ -311,29 +310,6 @@ function getDefaultModulesForERP(erpType) {
         isEnabled: true,
         displayName: 'Sales Orders',
         endpoint: 'salesorders',
-        sortOrder: 3,
-      },
-    ],
-    businesscentral: [
-      {
-        moduleType: 'leads',
-        isEnabled: true,
-        displayName: 'Sales Orders',
-        endpoint: 'salesOrders', // ← Usar salesOrders en lugar de salesQuotes
-        sortOrder: 1,
-      },
-      {
-        moduleType: 'contacts',
-        isEnabled: true,
-        displayName: 'Customers',
-        endpoint: 'customers',
-        sortOrder: 2,
-      },
-      {
-        moduleType: 'finance',
-        isEnabled: true,
-        displayName: 'Sales Invoices',
-        endpoint: 'salesInvoices',
         sortOrder: 3,
       },
     ],

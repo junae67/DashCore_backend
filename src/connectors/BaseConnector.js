@@ -11,7 +11,7 @@
  * - Buffer: API nativa de Node.js para manejo de datos binarios
  *
  * RELACIONES:
- * - Clase padre de DynamicsConnector, SAPConnector, BusinessCentralConnector
+ * - Clase padre de DynamicsConnector y SAPConnector
  * - Define el contrato que todos los conectores deben cumplir
  * - Los métodos abstractos lanzan errores si no son implementados
  *
