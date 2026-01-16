@@ -336,6 +336,29 @@ function getDefaultModulesForERP(erpType) {
         sortOrder: 3,
       },
     ],
+      businesscentral: [  // ← NUEVA SECCIÓN
+      {
+        moduleType: 'leads',
+        isEnabled: true,
+        displayName: 'Sales Orders',
+        endpoint: 'salesOrders',
+        sortOrder: 1,
+      },
+      {
+        moduleType: 'contacts',
+        isEnabled: true,
+        displayName: 'Customers',
+        endpoint: 'customers',
+        sortOrder: 2,
+      },
+      {
+        moduleType: 'finance',
+        isEnabled: true,
+        displayName: 'Sales Invoices',
+        endpoint: 'salesInvoices',
+        sortOrder: 3,
+      },
+    ],  
   };
 
   return defaults[erpType] || defaults.dynamics365;
