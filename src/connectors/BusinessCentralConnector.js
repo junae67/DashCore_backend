@@ -20,34 +20,49 @@ class BusinessCentralConnector extends BaseConnector {
   }
 
   async authenticate(email) {
-    try {
-   
-      const healthCheck = await axios.get(`${this.config.apiBaseUrl}/health`);
+  try {
+    // Verificar que la API está disponible
+    const healthCheck = await axios.get(`${this.config.apiBaseUrl}/health`);
 
-      if (healthCheck.data.status !== 'OK') {
-        throw new Error('Business Central API no está disponible');
-      }
-
-   
-      const dummyToken = Buffer.from(JSON.stringify({
-        email: email,
-        iss: 'business-central',
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // 1 año
-      })).toString('base64');
-
-      return {
-        access_token: dummyToken,
-        token_type: 'Bearer',
-        expires_in: 31536000, 
-        id_token: dummyToken,
-        refresh_token: dummyToken,
-      };
-    } catch (error) {
-      console.error('Error en authenticate de BC:', error);
-      throw new Error(`Error al autenticar con Business Central: ${error.message}`);
+    if (healthCheck.data.status !== 'OK') {
+      throw new Error('Business Central API no está disponible');
     }
+
+    // Crear un JWT válido (header.payload.signature)
+    // Header: especifica el algoritmo (none = sin firma)
+    const header = Buffer.from(JSON.stringify({
+      alg: 'none',
+      typ: 'JWT'
+    })).toString('base64url');
+
+    // Payload: datos del usuario
+    const payload = Buffer.from(JSON.stringify({
+      email: email,
+      iss: 'business-central',
+      sub: email,
+      name: email.split('@')[0],
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60), // 1 año
+    })).toString('base64url');
+
+    // Signature: vacía para JWT sin firma
+    const signature = '';
+
+    // Token completo en formato JWT
+    const dummyToken = `${header}.${payload}.${signature}`;
+
+    return {
+      access_token: dummyToken,
+      token_type: 'Bearer',
+      expires_in: 31536000,
+      id_token: dummyToken,
+      refresh_token: dummyToken,
+    };
+  } catch (error) {
+    console.error('Error en authenticate de BC:', error);
+    throw new Error(`Error al autenticar con Business Central: ${error.message}`);
   }
+}
 
   
   async refreshToken(refreshToken) {
