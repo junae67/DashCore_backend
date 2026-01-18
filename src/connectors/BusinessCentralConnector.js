@@ -219,6 +219,45 @@ class BusinessCentralConnector extends BaseConnector {
       throw new Error(`Error al obtener datos financieros: ${error.message}`);
     }
   }
+
+  /**
+   * Método genérico para obtener datos de cualquier endpoint
+   * Usado para módulos personalizados
+   */
+  async getGenericData(accessToken, endpoint, moduleType, companyId = null) {
+    try {
+      const config = await ConfigService.getModuleConfig(this.erpType, moduleType, companyId);
+
+      console.log(`📊 BC getGenericData - Endpoint: ${endpoint}, Module: ${moduleType}`);
+
+      const response = await axios.get(
+        `${this.config.apiBaseUrl}/api/${endpoint}`,
+        {
+          params: { limit: 100 },
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (!response.data.success) {
+        throw new Error(`Error en respuesta de BC API para ${endpoint}`);
+      }
+
+      // Transformar datos usando el fieldMapping de la BD
+      const transformedData = ConfigService.transformData(
+        response.data.data,
+        config.fieldMappings,
+        { source: 'Business Central' }
+      );
+
+      return transformedData;
+
+    } catch (error) {
+      console.error(`Error al obtener ${endpoint} de BC:`, error);
+      throw new Error(`Error al obtener ${endpoint}: ${error.message}`);
+    }
+  }
 }
 
 module.exports = BusinessCentralConnector;

@@ -164,6 +164,9 @@ router.get('/:erpType/auth', authController.startOAuth);
 router.get('/:erpType/callback', authController.handleCallback);
 
 // ========== DATOS DE ERPs (Multi-ERP, requieren autenticación) ==========
+// Obtiene módulos habilitados para el ERP (configuración dinámica)
+router.get('/:erpType/modules', authMiddleware, erpController.getModules);
+
 // Obtiene leads desde el ERP especificado
 router.get('/:erpType/leads', authMiddleware, erpController.getLeads);
 
@@ -172,6 +175,10 @@ router.get('/:erpType/contacts', authMiddleware, erpController.getContacts);
 
 // Obtiene datos financieros desde el ERP especificado
 router.get('/:erpType/finance', authMiddleware, erpController.getFinanceData);
+
+// ========== ENDPOINT GENÉRICO (debe ir después de las rutas específicas) ==========
+// Obtiene datos de cualquier endpoint personalizado
+router.get('/:erpType/:endpoint', authMiddleware, erpController.getGenericData);
 
 // ========== ADMINISTRACIÓN ==========
 // Lista todos los ERPs disponibles con sus clientes
