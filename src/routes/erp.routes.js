@@ -53,6 +53,9 @@ const authController = require('../controllers/auth.controller');
 const erpController = require('../controllers/erp.controller');
 const authMiddleware = require('../middlewares/authMiddleware');
 
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
 // ========== RETROCOMPATIBILIDAD DYNAMICS (rutas viejas) ==========
 // Mantener compatibilidad con la configuración existente de Azure AD
 router.get('/dynamics/auth', (req, res) => {
@@ -75,6 +78,82 @@ router.get('/dynamics/contacts', authMiddleware, (req, res) => {
   erpController.getContacts(req, res);
 });
 
+// ========== BUSINESS CENTRAL (Autenticación Directa - Sin OAuth) ==========
+// BC no usa OAuth2, usa autenticación directa
+router.get('/businesscentral/auth', async (req, res) => {
+  try {
+    const { getConnector } = require('../connectors');
+    const connector = getConnector('businesscentral');
+    
+    // Usar un email por defecto o de la query
+    const email = req.query.email || 'admin@cronus.local';
+    
+    console.log(`➡️ Autenticación directa para Business Central`);
+    console.log(`👤 Email: ${email}`);
+    
+    // Generar tokens usando el método authenticate del conector
+    const tokens = await connector.authenticate(email);
+    
+    // Buscar el ERP de Business Central
+    let erp = await prisma.erp.findUnique({ where: { name: 'businesscentral' } });
+    
+    if (!erp) {
+      erp = await prisma.erp.create({
+        data: {
+          name: 'businesscentral',
+          description: 'Microsoft Dynamics 365 Business Central',
+        },
+      });
+    }
+    
+    // Buscar o crear Company
+    let company = await prisma.company.findFirst({
+      where: {
+        email: email,
+        erpId: erp.id,
+      },
+    });
+    
+    if (!company) {
+      company = await prisma.company.create({
+        data: {
+          name: email.split('@')[0],
+          email: email,
+          erpId: erp.id,
+        },
+      });
+      console.log(`✅ Company creada: ${company.name}`);
+    }
+    
+    // Guardar Connector (token) en la base de datos
+    await prisma.connector.create({
+      data: {
+        type: 'businesscentral',
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token || null,
+        expiresAt: new Date(Date.now() + (tokens.expires_in * 1000)),
+        companyId: company.id,
+        erpId: erp.id,
+      },
+    });
+    
+    console.log(`✅ Connector guardado para Business Central`);
+    
+    // Redirigir al frontend con tokens
+    const frontendUrl = process.env.NODE_ENV === 'production'
+      ? 'https://www.dashcore.app'
+      : 'http://localhost:5173';
+    
+    const redirectUrl = `${frontendUrl}/inicio?id_token=${tokens.id_token}&access_token=${tokens.access_token}&erp=businesscentral`;
+    
+    console.log(`🎉 Redirigiendo al frontend: ${frontendUrl}/inicio?erp=businesscentral`);
+    res.redirect(redirectUrl);
+    
+  } catch (error) {
+    console.error('❌ Error en autenticación de Business Central:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 
 // ========== AUTENTICACIÓN OAUTH2 (Multi-ERP) ==========
