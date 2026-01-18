@@ -50,5 +50,6 @@ module.exports = async function (req, res, next) {
 
   // Adjuntar información del conector al request para uso posterior
   req.connector = connector;
+  req.companyId = connector.companyId; // Para que los controllers puedan acceder fácilmente
   next();
 };
