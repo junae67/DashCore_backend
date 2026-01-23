@@ -43,11 +43,10 @@ const DEFAULT_CONFIGS = {
       endpoint: 'salesInvoices',
       displayName: 'Facturas',
       fieldMappings: {
-        invoiceid: 'No_',
-        customername: 'Sell_to_Customer_Name',
-        totalamount: 'Amount',
-        createdon: 'Posting_Date',
-        status: 'Status'
+        invoiceid: 'invoiceid',
+        customername: 'customername',
+        createdon: 'createdon',
+        duedate: 'duedate'
       }
     }
   },
